@@ -8,6 +8,8 @@ const schema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   event_date: z.string().min(1, "Event date is required"),
+  responsible_member: z.string().optional(),
+  lei_responsible: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -71,6 +73,32 @@ export default function EventForm({ onSubmit, loading }: Props) {
         {errors.event_date && (
           <p className="text-red-500 text-xs mt-1">{errors.event_date.message}</p>
         )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Verantwortliche*r MESAnt*in{" "}
+          <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <input
+          {...register("responsible_member")}
+          type="text"
+          placeholder="Name of responsible MESA member"
+          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          LEI-Verantwortliche*r{" "}
+          <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <input
+          {...register("lei_responsible")}
+          type="text"
+          placeholder="Name of LEI responsible person"
+          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
+        />
       </div>
 
       <button

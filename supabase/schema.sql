@@ -5,24 +5,34 @@
 
 -- 1. EVENTS TABLE
 create table if not exists public.events (
-  id          uuid primary key default gen_random_uuid(),
-  title       text not null,
-  description text not null default '',
-  event_date  timestamptz not null,
-  public_token text unique not null,
-  created_at  timestamptz not null default now()
+  id                  uuid primary key default gen_random_uuid(),
+  title               text not null,
+  description         text not null default '',
+  event_date          timestamptz not null,
+  -- Name of the responsible MESA member (Verantwortliche*r MESAnt*in)
+  responsible_member  text,
+  -- Name of the LEI responsible person (LEI-Verantwortliche*r)
+  lei_responsible     text,
+  public_token        text unique not null,
+  created_at          timestamptz not null default now()
 );
 
 -- 2. PARTICIPANTS TABLE
 create table if not exists public.participants (
-  id             uuid primary key default gen_random_uuid(),
-  event_id       uuid not null references public.events(id) on delete cascade,
-  name           text not null,
-  email          text,
-  organization   text,
-  signature_url  text,
-  created_at     timestamptz not null default now(),
-  unique(event_id, email)
+  id               uuid primary key default gen_random_uuid(),
+  event_id         uuid not null references public.events(id) on delete cascade,
+  first_name       text not null,
+  last_name        text not null,
+  email            text,
+  nationality      text,
+  -- University attended: 'LMU' | 'TUM' | 'Other'
+  university       text,
+  -- Exchange programme: 'Erasmus+' | 'LMUexchange' | 'Full-time degree' | 'Other'
+  exchange_program text,
+  -- Whether the participant holds an ESNcard
+  esn_card         boolean,
+  signature_url    text,
+  created_at       timestamptz not null default now()
 );
 
 create index if not exists participants_event_id_idx on public.participants(event_id);
@@ -96,3 +106,52 @@ create policy "Public can read signatures"
 -- Enable realtime on participants table so the dashboard
 -- receives live updates when new participants sign in.
 alter publication supabase_realtime add table public.participants;
+
+-- ============================================================
+-- MIGRATION (run on existing databases to add new columns)
+-- Skip this section if you are setting up a fresh database.
+-- ============================================================
+
+-- Events: add responsible member fields
+alter table public.events
+  add column if not exists responsible_member text,
+  add column if not exists lei_responsible text;
+
+-- Participants: add new demographic / programme fields
+alter table public.participants
+  add column if not exists first_name text,
+  add column if not exists last_name  text,
+  add column if not exists nationality      text,
+  add column if not exists university       text,
+  add column if not exists exchange_program text,
+  add column if not exists esn_card         boolean;
+
+-- Back-fill first_name/last_name from the legacy name column (if it exists)
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name   = 'participants'
+      and column_name  = 'name'
+  ) then
+    -- When there is a space: first_name = everything before, last_name = everything after
+    -- When there is no space: put full name in first_name, leave last_name empty
+    update public.participants
+    set
+      first_name = case
+        when position(' ' in name) > 0 then split_part(name, ' ', 1)
+        else name
+      end,
+      last_name = case
+        when position(' ' in name) > 0 then substring(name from position(' ' in name) + 1)
+        else ''
+      end
+    where first_name is null;
+
+    -- After back-fill, apply not-null defaults so new inserts are safe
+    alter table public.participants
+      alter column first_name set default '',
+      alter column last_name  set default '';
+  end if;
+end $$;

@@ -30,6 +30,8 @@ export default function EventsDashboard() {
     title: string;
     description?: string;
     event_date: string;
+    responsible_member?: string;
+    lei_responsible?: string;
   }) {
     setSubmitting(true);
     setError(null);
@@ -40,6 +42,8 @@ export default function EventsDashboard() {
         title: data.title,
         description: data.description ?? "",
         event_date: data.event_date,
+        responsible_member: data.responsible_member ?? null,
+        lei_responsible: data.lei_responsible ?? null,
         public_token: publicToken,
       })
       .select()

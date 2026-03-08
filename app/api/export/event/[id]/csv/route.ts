@@ -38,12 +38,16 @@ export async function GET(
   }
 
   const rows: string[] = [
-    "Name,Email,Organization,Signature URL,Registered At",
+    "Surname,First Name,Email,Nationality,University,Exchange Programme,ESNcard,Signature URL,Registered At",
     ...((participants ?? []) as Participant[]).map((p) =>
       [
-        escapeCSV(p.name),
+        escapeCSV(p.last_name),
+        escapeCSV(p.first_name),
         escapeCSV(p.email),
-        escapeCSV(p.organization),
+        escapeCSV(p.nationality),
+        escapeCSV(p.university),
+        escapeCSV(p.exchange_program),
+        p.esn_card === null ? "" : p.esn_card ? "Yes" : "No",
         escapeCSV(p.signature_url),
         escapeCSV(p.created_at),
       ].join(",")

@@ -9,14 +9,23 @@ import { supabase } from "@/lib/supabase/client";
 import SignaturePad, { type SignaturePadHandle } from "@/components/SignaturePad";
 import type { Event } from "@/types";
 
+const UNIVERSITIES = ["LMU", "TUM", "Other"] as const;
+const EXCHANGE_PROGRAMS = ["Erasmus+", "LMUexchange", "Full-time degree", "Other"] as const;
+
 const schema = z.object({
-  name: z.string().min(1, "Name is required"),
+  first_name: z.string().min(1, "First name is required"),
+  last_name: z.string().min(1, "Last name is required"),
   email: z
     .string()
     .optional()
     .transform((val) => (val === "" ? undefined : val))
     .pipe(z.string().email("Invalid email").optional()),
-  organization: z.string().optional(),
+  nationality: z.string().min(1, "Nationality is required"),
+  university: z.enum(UNIVERSITIES, { error: "Please select your university" }),
+  exchange_program: z.enum(EXCHANGE_PROGRAMS, {
+    error: "Please select your exchange programme",
+  }),
+  esn_card: z.enum(["yes", "no"], { error: "Please indicate if you have an ESNcard" }),
   disclaimer_accepted: z.boolean().refine((v) => v === true, {
     message: "You must accept the disclaimer to continue.",
   }),
@@ -94,9 +103,13 @@ export default function AttendancePage() {
       const { error: insertError } = await supabase.from("participants").insert({
         id: participantId,
         event_id: event.id,
-        name: data.name,
+        first_name: data.first_name,
+        last_name: data.last_name,
         email: data.email || null,
-        organization: data.organization || null,
+        nationality: data.nationality,
+        university: data.university,
+        exchange_program: data.exchange_program,
+        esn_card: data.esn_card === "yes",
         signature_url: signatureUrl,
       });
 
@@ -160,130 +173,229 @@ export default function AttendancePage() {
         </div>
 
         <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
-          {event.description && (
-            <p className="text-gray-500 text-sm mt-1">{event.description}</p>
-          )}
-          <p className="text-xs text-gray-400 mt-1">
-            {new Date(event.event_date).toLocaleDateString("en-GB", {
-              weekday: "long",
-              day: "2-digit",
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              {...register("name")}
-              type="text"
-              placeholder="Your full name"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
-            />
-            {errors.name && (
-              <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
+            {event.description && (
+              <p className="text-gray-500 text-sm mt-1">{event.description}</p>
             )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email <span className="text-gray-400 font-normal">(optional)</span>
-            </label>
-            <input
-              {...register("email")}
-              type="email"
-              placeholder="you@example.com"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
-            />
-            {errors.email && (
-              <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Organization <span className="text-gray-400 font-normal">(optional)</span>
-            </label>
-            <input
-              {...register("organization")}
-              type="text"
-              placeholder="Your organization"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Signature <span className="text-red-500">*</span>
-            </label>
-            <SignaturePad ref={sigPadRef} />
-          </div>
-
-          {/* Disclaimer */}
-          <div className="rounded-md border border-gray-300 bg-gray-50 p-4 text-xs text-gray-700 space-y-3">
-            <div>
-              <p className="font-bold uppercase tracking-wide mb-1">Haftungsausschluss</p>
-              <p>
-                Jegliche Haftung von MESA e.V. ist auf einer grob fahrlässigen Pflichtverletzung
-                oder auf einer vorsätzlichen Pflichtverletzung seitens MESA e.V. beschränkt.
-                Jede*r Teilnehmer*in ist volljährig und komplett selbst verantwortlich für die
-                eigenen Handlungen; für eventuelle hieraus entstehende Schäden ist MESA e.V.
-                nicht haftbar. Die Teilnahme erfolgt auf eigene Gefahr.
-              </p>
-            </div>
-            <div>
-              <p className="font-bold uppercase tracking-wide mb-1">Disclaimer</p>
-              <p>
-                The responsibility of MESA e.V. is limited to gross breach of duty or
-                infringement on behalf of MESA e.V. Every participant is of legal full age and
-                is fully responsible for his or her actions; MESA e.V. is not responsible for
-                damages caused by the participants. The participation in this event is at your
-                own risk.
-              </p>
-            </div>
-          </div>
-
-          {/* Disclaimer acceptance checkbox */}
-          <div>
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                {...register("disclaimer_accepted")}
-                type="checkbox"
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-esn focus:ring-esn-accent shrink-0"
-              />
-              <span className="text-sm text-gray-700">
-                I have read and accept the Haftungsausschluss / Disclaimer above.{" "}
-                <span className="text-red-500">*</span>
-              </span>
-            </label>
-            {errors.disclaimer_accepted && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.disclaimer_accepted.message}
-              </p>
-            )}
-          </div>
-
-          {error && (
-            <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-              {error}
+            <p className="text-xs text-gray-400 mt-1">
+              {new Date(event.event_date).toLocaleDateString("en-GB", {
+                weekday: "long",
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
             </p>
-          )}
+          </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {submitting ? "Submitting…" : "Submit Attendance"}
-          </button>
-        </form>
-        </div>{/* /p-6 */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Name */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name / Vorname <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...register("first_name")}
+                  type="text"
+                  placeholder="Vorname"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
+                />
+                {errors.first_name && (
+                  <p className="text-red-500 text-xs mt-1">{errors.first_name.message}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name / Nachname <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...register("last_name")}
+                  type="text"
+                  placeholder="Nachname"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
+                />
+                {errors.last_name && (
+                  <p className="text-red-500 text-xs mt-1">{errors.last_name.message}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                {...register("email")}
+                type="email"
+                placeholder="you@example.com"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
+              />
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+              )}
+            </div>
+
+            {/* Nationality */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nationality / Nationalität <span className="text-red-500">*</span>
+              </label>
+              <input
+                {...register("nationality")}
+                type="text"
+                placeholder="e.g. German, Italian, Spanish…"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
+              />
+              {errors.nationality && (
+                <p className="text-red-500 text-xs mt-1">{errors.nationality.message}</p>
+              )}
+            </div>
+
+            {/* University */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                University / Universität <span className="text-red-500">*</span>
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {UNIVERSITIES.map((uni) => (
+                  <label key={uni} className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
+                    <input
+                      {...register("university")}
+                      type="radio"
+                      value={uni}
+                      className="h-4 w-4 border-gray-300 text-esn focus:ring-esn-accent"
+                    />
+                    {uni}
+                  </label>
+                ))}
+              </div>
+              {errors.university && (
+                <p className="text-red-500 text-xs mt-1">{errors.university.message}</p>
+              )}
+            </div>
+
+            {/* Exchange Programme */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Exchange Programme / Austauschprogramm <span className="text-red-500">*</span>
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {EXCHANGE_PROGRAMS.map((prog) => (
+                  <label key={prog} className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
+                    <input
+                      {...register("exchange_program")}
+                      type="radio"
+                      value={prog}
+                      className="h-4 w-4 border-gray-300 text-esn focus:ring-esn-accent"
+                    />
+                    {prog}
+                  </label>
+                ))}
+              </div>
+              {errors.exchange_program && (
+                <p className="text-red-500 text-xs mt-1">{errors.exchange_program.message}</p>
+              )}
+            </div>
+
+            {/* ESNcard */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                ESNcard <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
+                  <input
+                    {...register("esn_card")}
+                    type="radio"
+                    value="yes"
+                    className="h-4 w-4 border-gray-300 text-esn focus:ring-esn-accent"
+                  />
+                  Yes
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
+                  <input
+                    {...register("esn_card")}
+                    type="radio"
+                    value="no"
+                    className="h-4 w-4 border-gray-300 text-esn focus:ring-esn-accent"
+                  />
+                  No
+                </label>
+              </div>
+              {errors.esn_card && (
+                <p className="text-red-500 text-xs mt-1">{errors.esn_card.message}</p>
+              )}
+            </div>
+
+            {/* Signature */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Signature / Unterschrift <span className="text-red-500">*</span>
+              </label>
+              <SignaturePad ref={sigPadRef} />
+            </div>
+
+            {/* Disclaimer */}
+            <div className="rounded-md border border-gray-300 bg-gray-50 p-4 text-xs text-gray-700 space-y-3">
+              <div>
+                <p className="font-bold uppercase tracking-wide mb-1">Haftungsausschluss</p>
+                <p>
+                  Jegliche Haftung von MESA e.V. ist auf einer grob fahrlässigen Pflichtverletzung
+                  oder auf einer vorsätzlichen Pflichtverletzung seitens MESA e.V. beschränkt.
+                  Jede*r Teilnehmer*in ist volljährig und komplett selbst verantwortlich für die
+                  eigenen Handlungen; für eventuelle hieraus entstehende Schäden ist MESA e.V.
+                  nicht haftbar. Die Teilnahme erfolgt auf eigene Gefahr.
+                </p>
+              </div>
+              <div>
+                <p className="font-bold uppercase tracking-wide mb-1">Disclaimer</p>
+                <p>
+                  The responsibility of MESA e.V. is limited to gross breach of duty or
+                  infringement on behalf of MESA e.V. Every participant is of legal full age and
+                  is fully responsible for his or her actions; MESA e.V. is not responsible for
+                  damages caused by the participants. The participation in this event is at your
+                  own risk.
+                </p>
+              </div>
+            </div>
+
+            {/* Disclaimer acceptance checkbox */}
+            <div>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  {...register("disclaimer_accepted")}
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-esn focus:ring-esn-accent shrink-0"
+                />
+                <span className="text-sm text-gray-700">
+                  I have read and accept the Haftungsausschluss / Disclaimer above.{" "}
+                  <span className="text-red-500">*</span>
+                </span>
+              </label>
+              {errors.disclaimer_accepted && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.disclaimer_accepted.message}
+                </p>
+              )}
+            </div>
+
+            {error && (
+              <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {submitting ? "Submitting…" : "Submit Attendance"}
+            </button>
+          </form>
+        </div>
       </div>
     </main>
   );

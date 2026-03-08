@@ -21,24 +21,34 @@ export default function AttendanceTable({ participants }: Props) {
       <table className="min-w-full text-sm text-left">
         <thead>
           <tr className="bg-gray-100 text-gray-600 uppercase text-xs">
-            <th className="px-4 py-2">Name</th>
-            <th className="px-4 py-2">Email</th>
-            <th className="px-4 py-2">Organization</th>
-            <th className="px-4 py-2">Signature</th>
-            <th className="px-4 py-2">Time</th>
+            <th className="px-3 py-2 whitespace-nowrap">#</th>
+            <th className="px-3 py-2 whitespace-nowrap">Surname</th>
+            <th className="px-3 py-2 whitespace-nowrap">First Name</th>
+            <th className="px-3 py-2 whitespace-nowrap">Nationality</th>
+            <th className="px-3 py-2 whitespace-nowrap">University</th>
+            <th className="px-3 py-2 whitespace-nowrap">Exchange Programme</th>
+            <th className="px-3 py-2 whitespace-nowrap">ESNcard</th>
+            <th className="px-3 py-2 whitespace-nowrap">Signature</th>
+            <th className="px-3 py-2 whitespace-nowrap">Time</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {participants.map((p) => (
+          {participants.map((p, idx) => (
             <tr key={p.id} className="hover:bg-gray-50">
-              <td className="px-4 py-2 font-medium text-gray-900">{p.name}</td>
-              <td className="px-4 py-2 text-gray-600">{p.email ?? "—"}</td>
-              <td className="px-4 py-2 text-gray-600">{p.organization ?? "—"}</td>
-              <td className="px-4 py-2">
+              <td className="px-3 py-2 text-gray-400 text-xs">{idx + 1}</td>
+              <td className="px-3 py-2 font-medium text-gray-900">{p.last_name}</td>
+              <td className="px-3 py-2 text-gray-700">{p.first_name}</td>
+              <td className="px-3 py-2 text-gray-600">{p.nationality ?? "—"}</td>
+              <td className="px-3 py-2 text-gray-600">{p.university ?? "—"}</td>
+              <td className="px-3 py-2 text-gray-600">{p.exchange_program ?? "—"}</td>
+              <td className="px-3 py-2 text-gray-600">
+                {p.esn_card === null ? "—" : p.esn_card ? "Yes" : "No"}
+              </td>
+              <td className="px-3 py-2">
                 {p.signature_url ? (
                   <Image
                     src={p.signature_url}
-                    alt={`${p.name} signature`}
+                    alt={`${p.first_name} ${p.last_name} signature`}
                     width={80}
                     height={40}
                     className="border border-gray-200 rounded bg-white"
@@ -48,7 +58,7 @@ export default function AttendanceTable({ participants }: Props) {
                   <span className="text-gray-400">—</span>
                 )}
               </td>
-              <td className="px-4 py-2 text-gray-500 whitespace-nowrap">
+              <td className="px-3 py-2 text-gray-500 whitespace-nowrap">
                 {new Date(p.created_at).toLocaleTimeString("en-GB", {
                   hour: "2-digit",
                   minute: "2-digit",
