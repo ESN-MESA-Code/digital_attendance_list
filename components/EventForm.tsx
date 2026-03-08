@@ -40,7 +40,7 @@ export default function EventForm({ onSubmit, loading }: Props) {
           {...register("title")}
           type="text"
           placeholder="Event title"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
         />
         {errors.title && (
           <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>
@@ -55,7 +55,7 @@ export default function EventForm({ onSubmit, loading }: Props) {
           {...register("description")}
           placeholder="Event description"
           rows={3}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
         />
       </div>
 
@@ -66,7 +66,7 @@ export default function EventForm({ onSubmit, loading }: Props) {
         <input
           {...register("event_date")}
           type="datetime-local"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
         />
         {errors.event_date && (
           <p className="text-red-500 text-xs mt-1">{errors.event_date.message}</p>
@@ -76,7 +76,7 @@ export default function EventForm({ onSubmit, loading }: Props) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="w-full bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? "Creating…" : "Create Event"}
       </button>

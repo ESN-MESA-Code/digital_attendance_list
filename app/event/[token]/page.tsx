@@ -17,6 +17,9 @@ const schema = z.object({
     .transform((val) => (val === "" ? undefined : val))
     .pipe(z.string().email("Invalid email").optional()),
   organization: z.string().optional(),
+  disclaimer_accepted: z.boolean().refine((v) => v === true, {
+    message: "You must accept the disclaimer to continue.",
+  }),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -145,8 +148,18 @@ export default function AttendancePage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 max-w-lg w-full">
+    <main className="min-h-screen bg-gray-50 flex items-start justify-center px-4 py-10">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 max-w-lg w-full overflow-hidden">
+        {/* ESN branding strip */}
+        <div className="bg-esn px-6 py-4 flex items-center gap-3">
+          <span className="text-xl font-black text-esn-accent leading-none" aria-hidden="true">✦</span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-extrabold text-white tracking-tight">ESN</span>
+            <span className="text-[10px] text-white/80 -mt-0.5 tracking-wide">MESA München</span>
+          </div>
+        </div>
+
+        <div className="p-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
           {event.description && (
@@ -171,7 +184,7 @@ export default function AttendancePage() {
               {...register("name")}
               type="text"
               placeholder="Your full name"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
             />
             {errors.name && (
               <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>
@@ -186,7 +199,7 @@ export default function AttendancePage() {
               {...register("email")}
               type="email"
               placeholder="you@example.com"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
             />
             {errors.email && (
               <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
@@ -201,7 +214,7 @@ export default function AttendancePage() {
               {...register("organization")}
               type="text"
               placeholder="Your organization"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent"
             />
           </div>
 
@@ -210,6 +223,50 @@ export default function AttendancePage() {
               Signature <span className="text-red-500">*</span>
             </label>
             <SignaturePad ref={sigPadRef} />
+          </div>
+
+          {/* Disclaimer */}
+          <div className="rounded-md border border-gray-300 bg-gray-50 p-4 text-xs text-gray-700 space-y-3">
+            <div>
+              <p className="font-bold uppercase tracking-wide mb-1">Haftungsausschluss</p>
+              <p>
+                Jegliche Haftung von MESA e.V. ist auf einer grob fahrlässigen Pflichtverletzung
+                oder auf einer vorsätzlichen Pflichtverletzung seitens MESA e.V. beschränkt.
+                Jede*r Teilnehmer*in ist volljährig und komplett selbst verantwortlich für die
+                eigenen Handlungen; für eventuelle hieraus entstehende Schäden ist MESA e.V.
+                nicht haftbar. Die Teilnahme erfolgt auf eigene Gefahr.
+              </p>
+            </div>
+            <div>
+              <p className="font-bold uppercase tracking-wide mb-1">Disclaimer</p>
+              <p>
+                The responsibility of MESA e.V. is limited to gross breach of duty or
+                infringement on behalf of MESA e.V. Every participant is of legal full age and
+                is fully responsible for his or her actions; MESA e.V. is not responsible for
+                damages caused by the participants. The participation in this event is at your
+                own risk.
+              </p>
+            </div>
+          </div>
+
+          {/* Disclaimer acceptance checkbox */}
+          <div>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                {...register("disclaimer_accepted")}
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-esn focus:ring-esn-accent shrink-0"
+              />
+              <span className="text-sm text-gray-700">
+                I have read and accept the Haftungsausschluss / Disclaimer above.{" "}
+                <span className="text-red-500">*</span>
+              </span>
+            </label>
+            {errors.disclaimer_accepted && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.disclaimer_accepted.message}
+              </p>
+            )}
           </div>
 
           {error && (
@@ -221,11 +278,12 @@ export default function AttendancePage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? "Submitting…" : "Submit Attendance"}
           </button>
         </form>
+        </div>{/* /p-6 */}
       </div>
     </main>
   );

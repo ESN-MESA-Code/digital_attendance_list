@@ -60,7 +60,7 @@ export default function EventsDashboard() {
         <h1 className="text-2xl font-bold text-gray-900">Events</h1>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+          className="bg-esn text-white text-sm px-4 py-2 rounded-md hover:bg-esn-dark transition-colors"
         >
           {showForm ? "Cancel" : "+ New Event"}
         </button>

@@ -41,7 +41,7 @@ export default function EventDetailPage() {
     return (
       <main className="max-w-4xl mx-auto px-4 py-10">
         <p className="text-red-500">Event not found.</p>
-        <Link href="/dashboard/events" className="text-blue-600 hover:underline text-sm mt-2 block">
+        <Link href="/dashboard/events" className="text-esn hover:underline text-sm mt-2 block">
           ← Back to events
         </Link>
       </main>
@@ -56,7 +56,7 @@ export default function EventDetailPage() {
   return (
     <main className="max-w-4xl mx-auto px-4 py-10 space-y-6">
       <div className="flex items-center gap-4 mb-2">
-        <Link href="/dashboard/events" className="text-blue-600 hover:underline text-sm">
+        <Link href="/dashboard/events" className="text-esn hover:underline text-sm">
           ← Events
         </Link>
       </div>

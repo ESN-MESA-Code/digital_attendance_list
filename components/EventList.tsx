@@ -34,7 +34,7 @@ export default function EventList({ events }: Props) {
           </div>
           <Link
             href={`/dashboard/events/${event.id}`}
-            className="text-blue-600 text-sm font-medium hover:underline"
+            className="text-esn text-sm font-medium hover:underline"
           >
             View →
           </Link>
