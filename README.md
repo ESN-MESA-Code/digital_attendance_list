@@ -46,7 +46,9 @@ lib/
 hooks/                       # useParticipants (realtime hook)
 types/                       # Shared TypeScript types
 supabase/
-  schema.sql                 # Database schema + RLS policies
+  migrations/                # Database schema + RLS policies (applied by CI)
+.github/workflows/
+  db-migrate.yml             # Applies new migrations on push to main
 ```
 
 ---
@@ -59,13 +61,25 @@ Go to [supabase.com](https://supabase.com) and create a new project.
 
 ### 2. Apply the database schema
 
-Open the **SQL Editor** in your Supabase dashboard and run the contents of [`supabase/schema.sql`](supabase/schema.sql).
+The schema lives in [`supabase/migrations/`](supabase/migrations). The
+[`db-migrate`](.github/workflows/db-migrate.yml) GitHub Action applies new migration files
+to the production database whenever they are pushed to `main` (it can also be started by
+hand under **Actions → Database migrations → Run workflow**).
 
-This creates:
-- `events` table
-- `participants` table (with unique constraint on `(event_id, email)`)
-- Row Level Security policies
+It needs one secret, `SUPABASE_DB_URL`, in the repository's `production` environment:
+the **Session pooler** connection string from **Connect** in the Supabase dashboard, with
+your database password filled in. (The direct connection is IPv6-only and unreachable from
+GitHub's runners.)
+
+To change the schema, add a new file `supabase/migrations/<YYYYMMDDHHMMSS>_<name>.sql`;
+never edit a migration that has already been applied.
+
+The migrations create:
+- `events` and `participants` tables
+- Row Level Security policies (organiser access limited to esnmesa.org accounts)
+- A trigger rejecting sign-ups from any other account
 - A public `signatures` storage bucket
+- Realtime on `participants`
 
 ### 3. Install dependencies
 
@@ -105,8 +119,6 @@ Google Workspace accounts. The public attendance form stays open.
    Disable the **Email** provider and the other providers.
 3. Under **Authentication → URL Configuration**, set the Site URL to your deployment URL and add
    `http://localhost:3000/auth/callback` and `https://<your-domain>/auth/callback` to the redirect URLs.
-4. Run [`supabase/auth.sql`](supabase/auth.sql) in the SQL Editor. It blocks sign-ups from any other
-   account and restricts the organiser RLS policies to esnmesa.org members.
 
 ### 6. Run the development server
 
