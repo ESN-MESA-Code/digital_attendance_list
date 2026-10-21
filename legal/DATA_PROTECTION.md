@@ -240,8 +240,7 @@ E.g. a leaked service role key, a lost unlocked organiser device, a lost printed
   readable by Workspace members only. Nobody may **delete** events or sign-ins through the
   API – only the retention job and admins in SQL. A trigger rejects sign-ups from other domains.
 - Need-to-know: every `@esnmesa.org` account belongs to a member of the association who
-  organises events and signed the confidentiality commitment (below), so all of them may
-  read all lists; organisers regularly cover each other's events. Accounts are only given
+  organises events, so all of them may read all lists; organisers regularly cover each other's events. Accounts are only given
   to such members and removed when they leave. Revisit if accounts are ever given to
   people who do not organise events.
 - Signed-off events accept no further sign-ins (enforced in the database).
@@ -293,8 +292,9 @@ E.g. a leaked service role key, a lost unlocked organiser device, a lost printed
   the device alone with a participant – stay next to them while they sign in. Where possible
   pin the browser to the form (Android: app pinning; iPhone/iPad: Guided Access) and lock the
   device when you put it down.
-- Organisers confirm in writing that they keep participants' data confidential
-  (Verpflichtung auf Vertraulichkeit) before getting an `@esnmesa.org` account.
+- Organisers use participants' data only for the attendance lists and keep it confidential.
+  Written confidentiality commitments (Verpflichtung auf Vertraulichkeit) are not collected
+  yet – recommended as proof of this instruction (open point 5).
 
 **Change management**
 - Database changes only as reviewed migration files, applied by CI on `main`; the
@@ -354,8 +354,10 @@ info@esnmesa.org, named in the privacy notice and Impressum.
    ask for a paper list – organisers need to know this and carry one (section 7).
 4. **Printed lists:** destroying them at the end of the retention period must be part of
    the office routine.
-5. **Organisational rules** (section 7): tell all organisers, collect the
-   confidentiality commitments.
+5. **Organisational rules** (section 7): tell all organisers. Recommended: have current
+   organisers sign a short confidentiality commitment, and new ones when they get an
+   `@esnmesa.org` account (date it when signed; not legally required, but the usual
+   evidence for Art. 5(2), 24 and 32(4) GDPR).
 6. **Retention period** (set to five years, 21 October 2026): confirm it against the grant
    agreements (e.g. LEI), and check whether lists are ever used as accounting records
    (8 years). If so, lengthen it.
