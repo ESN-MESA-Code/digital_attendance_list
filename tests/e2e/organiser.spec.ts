@@ -219,10 +219,11 @@ test("tracks which printed lists are filed in the office", async ({ page, event 
   // The event page shows who filed it, and can undo
   await page.goto(`/dashboard/events/${event.id}`);
   await expect(page.getByText(`by ${ORGANISER.email}`)).toBeVisible();
+  await expect(page.getByText("✓ Filed in office")).toBeVisible();
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(page.getByText("Not filed yet")).toBeVisible();
   await page.getByRole("button", { name: "✓ Mark as filed" }).click();
-  await expect(page.getByText(/^Filed in the office on/)).toBeVisible();
+  await expect(page.getByText(/^on \d\d \w+ \d{4} by /)).toBeVisible();
 
   const { data } = await admin.from("events").select("filed_by").eq("id", event.id).single();
   expect(data!.filed_by).toBe(ORGANISER.email);
@@ -237,4 +238,80 @@ test("the combined export checks its ids", async ({ page, event }) => {
   expect((await get(tooMany)).status()).toBe(400);
   expect((await get(`${event.id},${crypto.randomUUID()}`)).status()).toBe(404);
   expect((await get(event.id)).status()).toBe(200);
+});
+
+test.describe("in Munich", () => {
+  test.use({ timezoneId: "Europe/Berlin" });
+
+  test("stores the entered time in the organiser's time zone", async ({ page }) => {
+    const title = `TZ event ${Date.now()}`;
+    await page.goto("/dashboard/events");
+    await page.getByRole("button", { name: "+ New Event" }).click();
+    await page.getByPlaceholder("Event title").fill(title);
+    // Pre-filled with the current local time
+    const now = await page.evaluate(() => {
+      const d = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    });
+    const prefilled = await page.locator('input[name="event_date"]').inputValue();
+    expect(Math.abs(new Date(prefilled).getTime() - new Date(now).getTime())).toBeLessThanOrEqual(60_000);
+    await page.locator('input[name="event_date"]').fill("2026-11-05T19:00");
+    await page.getByRole("button", { name: "Create Event" }).click();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await expect(page.getByText("05 November 2026 at 19:00")).toBeVisible();
+
+    const { data } = await admin.from("events").select("id, event_date").eq("title", title).single();
+    await admin.from("events").delete().eq("id", data!.id);
+    // 19:00 in Munich (CET) is 18:00 UTC
+    expect(new Date(data!.event_date).toISOString()).toBe("2026-11-05T18:00:00.000Z");
+  });
+
+  test("edits an event in place: same id and QR code, fixed details", async ({ page, event }) => {
+    await page.goto(`/dashboard/events/${event.id}`);
+    await page.getByRole("button", { name: "Edit" }).click();
+    // Pre-filled with the current values
+    await expect(page.getByPlaceholder("Event title")).toHaveValue(event.title);
+    await expect(page.getByPlaceholder("Name of LEI responsible person")).toHaveValue("Lea LEI");
+
+    // Cancel changes nothing
+    await page.getByPlaceholder("Event title").fill("Discarded");
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("heading", { name: event.title })).toBeVisible();
+
+    await page.getByRole("button", { name: "Edit" }).click();
+    await page.getByPlaceholder("Event title").fill("Stammtisch (typo fixed)");
+    await page.getByPlaceholder("Event description").fill("New description");
+    await page.locator('input[name="event_date"]').fill("2026-12-01T20:30");
+    await page.getByPlaceholder("Name of responsible MESA member").fill("Rita Fixed");
+    await page.getByRole("button", { name: "Save changes" }).click();
+
+    await expect(page.getByRole("heading", { name: "Stammtisch (typo fixed)" })).toBeVisible();
+    await expect(page.getByText("New description")).toBeVisible();
+    await expect(page.getByText("01 December 2026 at 20:30")).toBeVisible();
+    await expect(page.getByText("Responsible: Rita Fixed · LEI: Lea LEI")).toBeVisible();
+    await expect(page).toHaveURL(`/dashboard/events/${event.id}`);
+    await expect(page.getByText(`/event/${event.public_token}`)).toBeVisible();
+
+    const { data } = await admin.from("events").select("*").eq("id", event.id).single();
+    expect(data).toMatchObject({
+      public_token: event.public_token,
+      title: "Stammtisch (typo fixed)",
+      description: "New description",
+      responsible_member: "Rita Fixed",
+      lei_responsible: "Lea LEI",
+    });
+    expect(new Date(data!.event_date).toISOString()).toBe("2026-12-01T19:30:00.000Z");
+
+    // The participant form shows the fixed title
+    await page.goto(`/event/${event.public_token}`);
+    await expect(page.getByRole("heading", { name: "Stammtisch (typo fixed)" })).toBeVisible();
+  });
+});
+
+test("the logo leads back to the events page; no separate Events link", async ({ page, event }) => {
+  await page.goto(`/dashboard/events/${event.id}`);
+  await expect(page.getByRole("banner").getByRole("link", { name: "Events", exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: "ESN MESA München – back to events" }).click();
+  await expect(page).toHaveURL("/dashboard/events");
 });

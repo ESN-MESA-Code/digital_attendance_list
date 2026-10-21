@@ -7,6 +7,7 @@ import EventList from "@/components/EventList";
 import { supabase } from "@/lib/supabase/client";
 import { DownloadIcon, ExportLink } from "@/components/ExportButtons";
 import { setFiled } from "@/lib/events/filed";
+import { fromDateTimeLocal } from "@/lib/datetime";
 import { MAX_EXPORT_EVENTS } from "@/lib/export/eventIds";
 import type { Event } from "@/types";
 
@@ -61,7 +62,7 @@ export default function EventsDashboard() {
       .insert({
         title: data.title,
         description: data.description ?? "",
-        event_date: data.event_date,
+        event_date: fromDateTimeLocal(data.event_date),
         responsible_member: data.responsible_member ?? null,
         lei_responsible: data.lei_responsible ?? null,
         public_token: publicToken,

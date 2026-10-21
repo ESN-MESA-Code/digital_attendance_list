@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toDateTimeLocal } from "@/lib/datetime";
 
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -13,16 +14,33 @@ const schema = z.object({
   lei_responsible: z.string().optional(),
 });
 
-type FormData = z.infer<typeof schema>;
+export type EventFormData = z.infer<typeof schema>;
+type FormData = EventFormData;
 
 interface Props {
+  /** event_date arrives as a local "YYYY-MM-DDTHH:mm" (see lib/datetime). */
   onSubmit: (data: FormData) => Promise<void>;
   loading?: boolean;
   /** Pre-fills "Verantwortliche*r MESAnt*in" – the signed-in organiser's name. */
   defaultResponsible?: string;
+  /** Editing: the event's current values (the form is not cleared after saving). */
+  initialValues?: FormData;
+  onCancel?: () => void;
 }
 
-export default function EventForm({ onSubmit, loading, defaultResponsible = "" }: Props) {
+/** A new event starts at the time it is created; change it if needed. */
+function newEventDefaults(responsible: string): Partial<FormData> {
+  return { responsible_member: responsible, event_date: toDateTimeLocal(new Date().toISOString()) };
+}
+
+export default function EventForm({
+  onSubmit,
+  loading,
+  defaultResponsible = "",
+  initialValues,
+  onCancel,
+}: Props) {
+  const editing = initialValues !== undefined;
   const {
     register,
     handleSubmit,
@@ -32,19 +50,19 @@ export default function EventForm({ onSubmit, loading, defaultResponsible = "" }
     setValue,
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { responsible_member: defaultResponsible },
+    defaultValues: initialValues ?? newEventDefaults(defaultResponsible),
   });
 
   // The user's name may arrive after the form mounts; fill it in unless edited.
   useEffect(() => {
-    if (defaultResponsible && !getValues("responsible_member")) {
+    if (!editing && defaultResponsible && !getValues("responsible_member")) {
       setValue("responsible_member", defaultResponsible);
     }
-  }, [defaultResponsible, getValues, setValue]);
+  }, [editing, defaultResponsible, getValues, setValue]);
 
   async function handleFormSubmit(data: FormData) {
     await onSubmit(data);
-    reset({ responsible_member: defaultResponsible });
+    if (!editing) reset(newEventDefaults(defaultResponsible));
   }
 
   return (
@@ -116,13 +134,25 @@ export default function EventForm({ onSubmit, loading, defaultResponsible = "" }
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        {loading ? "Creating…" : "Create Event"}
-      </button>
+      <div className="flex gap-3">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="border border-gray-300 text-gray-700 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex-1 bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {editing ? (loading ? "Saving…" : "Save changes") : loading ? "Creating…" : "Create Event"}
+        </button>
+      </div>
     </form>
   );
 }
