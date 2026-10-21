@@ -57,7 +57,13 @@ describe("legal texts", () => {
     expect(dataProcessing).toContain(`end of the ${LEGAL.retention.years}th year after the event`);
     // Legitimate interest with a right to object – not consent.
     expect(dataProcessing).toContain("Art. 6(1)(f) GDPR");
-    expect(dataProcessing).toMatch(/object to the processing/);
+    expect(dataProcessing).toMatch(/<strong>You can object at any time, on grounds relating to your particular situation/);
+    // Funders are named as recipients, not "only organisers".
+    expect(dataProcessing).toContain("funders or auditors");
+    expect(dataProcessing).toContain("paper list");
+    // The full notice is one click away, in a new tab.
+    expect(dataProcessing).toContain('<a target="_blank" rel="noopener" href="/privacy">');
+    expect(dataProcessing).toContain('<a target="_blank" rel="noopener" href="/datenschutz">');
     expect(dataProcessing).not.toMatch(/consent/i);
   });
 });
