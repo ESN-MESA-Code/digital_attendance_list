@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getWorkspaceUser } from "@/lib/supabase/session";
 
 export default async function DashboardLayout({
@@ -13,14 +14,16 @@ export default async function DashboardLayout({
       {/* ESN-branded top navbar */}
       <header className="bg-esn text-white shadow-md">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center gap-4">
-          {/* ESN star mark – six-pointed, rendered with Unicode asterisk */}
-          <span className="text-2xl font-black leading-none text-esn-accent" aria-hidden="true">✦</span>
-          <div className="flex flex-col leading-tight">
-            <span className="text-base font-extrabold tracking-tight">ESN</span>
-            <span className="text-[10px] font-medium opacity-80 -mt-0.5 tracking-wide">
-              MESA München
-            </span>
-          </div>
+          <Link href="/dashboard/events" className="shrink-0">
+            <Image
+              src="/esn-mesa-logo-white.png"
+              alt="ESN MESA München"
+              width={600}
+              height={334}
+              priority
+              className="h-10 w-auto"
+            />
+          </Link>
           <div className="w-px h-6 bg-white/30 mx-1" />
           <Link
             href="/dashboard/events"

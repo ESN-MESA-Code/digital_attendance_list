@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { WORKSPACE_DOMAIN } from "@/lib/auth";
@@ -38,8 +39,15 @@ function LoginForm() {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 w-full max-w-sm text-center">
-      <span className="text-4xl font-black leading-none text-esn-accent" aria-hidden="true">✦</span>
-      <h1 className="text-xl font-bold text-gray-900 mt-3">MES Attendance</h1>
+      <Image
+        src="/esn-mesa-logo.png"
+        alt="ESN MESA München"
+        width={600}
+        height={334}
+        priority
+        className="h-20 w-auto mx-auto"
+      />
+      <h1 className="text-xl font-bold text-gray-900 mt-4">MES Attendance</h1>
       <p className="text-sm text-gray-500 mt-1 mb-6">
         Sign in with your @{WORKSPACE_DOMAIN} account
       </p>

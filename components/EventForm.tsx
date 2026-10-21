@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,19 +18,33 @@ type FormData = z.infer<typeof schema>;
 interface Props {
   onSubmit: (data: FormData) => Promise<void>;
   loading?: boolean;
+  /** Pre-fills "Verantwortliche*r MESAnt*in" – the signed-in organiser's name. */
+  defaultResponsible?: string;
 }
 
-export default function EventForm({ onSubmit, loading }: Props) {
+export default function EventForm({ onSubmit, loading, defaultResponsible = "" }: Props) {
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+    getValues,
+    setValue,
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { responsible_member: defaultResponsible },
+  });
+
+  // The user's name may arrive after the form mounts; fill it in unless edited.
+  useEffect(() => {
+    if (defaultResponsible && !getValues("responsible_member")) {
+      setValue("responsible_member", defaultResponsible);
+    }
+  }, [defaultResponsible, getValues, setValue]);
 
   async function handleFormSubmit(data: FormData) {
     await onSubmit(data);
-    reset();
+    reset({ responsible_member: defaultResponsible });
   }
 
   return (

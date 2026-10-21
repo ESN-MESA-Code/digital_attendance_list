@@ -13,6 +13,7 @@ export default function EventsDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userName, setUserName] = useState("");
 
   useEffect(() => {
     async function fetchEvents() {
@@ -23,7 +24,13 @@ export default function EventsDashboard() {
       if (!error && data) setEvents(data as Event[]);
       setLoading(false);
     }
+    async function fetchUserName() {
+      const { data } = await supabase.auth.getUser();
+      const meta = data.user?.user_metadata;
+      setUserName(meta?.full_name ?? meta?.name ?? "");
+    }
     fetchEvents();
+    fetchUserName();
   }, []);
 
   async function handleCreate(data: {
@@ -76,7 +83,7 @@ export default function EventsDashboard() {
           {error && (
             <p className="text-red-500 text-sm mb-3">{error}</p>
           )}
-          <EventForm onSubmit={handleCreate} loading={submitting} />
+          <EventForm onSubmit={handleCreate} loading={submitting} defaultResponsible={userName} />
         </div>
       )}
 

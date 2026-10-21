@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase/client";
 import SignaturePad, { type SignaturePadHandle } from "@/components/SignaturePad";
 import type { Event } from "@/types";
@@ -165,11 +166,14 @@ export default function AttendancePage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 max-w-lg w-full overflow-hidden">
         {/* ESN branding strip */}
         <div className="bg-esn px-6 py-4 flex items-center gap-3">
-          <span className="text-xl font-black text-esn-accent leading-none" aria-hidden="true">✦</span>
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm font-extrabold text-white tracking-tight">ESN</span>
-            <span className="text-[10px] text-white/80 -mt-0.5 tracking-wide">MESA München</span>
-          </div>
+          <Image
+            src="/esn-mesa-logo-white.png"
+            alt="ESN MESA München"
+            width={600}
+            height={334}
+            priority
+            className="h-12 w-auto"
+          />
         </div>
 
         <div className="p-6">
