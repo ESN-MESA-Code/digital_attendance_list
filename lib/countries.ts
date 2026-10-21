@@ -1,39 +1,73 @@
-// Countries offered for the "Nationality" field, so answers stay uniform.
-export const COUNTRIES = [
-  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda",
-  "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain",
-  "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia",
-  "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso",
-  "Burundi", "Cambodia", "Cameroon", "Canada", "Cape Verde", "Central African Republic",
-  "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Democratic Republic)",
-  "Congo (Republic)", "Costa Rica", "Côte d'Ivoire", "Croatia", "Cuba", "Cyprus",
-  "Czech Republic", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador",
-  "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia",
-  "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece",
-  "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras",
-  "Hong Kong", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland",
-  "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati",
-  "Kosovo", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia",
-  "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Macau", "Madagascar", "Malawi",
-  "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius",
-  "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco",
-  "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand",
-  "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman",
-  "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru",
-  "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda",
-  "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa",
-  "San Marino", "São Tomé and Príncipe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles",
-  "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia",
-  "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname",
-  "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand",
-  "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey",
-  "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom",
-  "United States", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela",
-  "Vietnam", "Yemen", "Zambia", "Zimbabwe",
-] as const;
+import countries from "i18n-iso-countries";
+import en from "i18n-iso-countries/langs/en.json";
+import de from "i18n-iso-countries/langs/de.json";
 
-/** Returns the canonical country name for free-typed input, or null if unknown. */
+// Nationalities are stored as ISO 3166-1 alpha-2 codes ("DE") and turned
+// into names only for display, so exports can pick their language. Names come
+// from the i18n-iso-countries package – there is no list to maintain here.
+countries.registerLocale(en);
+countries.registerLocale(de);
+
+export const EXPORT_LANGUAGES = { de: "Deutsch", en: "English" } as const;
+export type Lang = keyof typeof EXPORT_LANGUAGES;
+export const DEFAULT_EXPORT_LANG: Lang = "de";
+
+export function parseLang(value: string | null | undefined): Lang {
+  return value && value in EXPORT_LANGUAGES ? (value as Lang) : DEFAULT_EXPORT_LANG;
+}
+
+/** Lower-case and strip accents, so "turkiye" matches "Türkiye". */
+const normalize = (s: string) =>
+  s.normalize("NFD").replace(/\p{Diacritic}/gu, "").trim().toLowerCase();
+
+// Prefer a plain name over official forms like "Taiwan, Province of China".
+const plainName = (names: string[]) => names.find((n) => !/[,(]/.test(n)) ?? names[0];
+
+const allNames = (code: string, lang: Lang): string[] =>
+  [countries.getName(code, lang, { select: "all" }) ?? []].flat();
+
+interface Country {
+  code: string;
+  /** English name shown in the attendance form */
+  name: string;
+  /** Every English and German name and abbreviation, normalised for search */
+  terms: string[];
+}
+
+const COUNTRY_INDEX: Country[] = Object.keys(countries.getAlpha2Codes())
+  .map((code) => ({
+    code,
+    name: plainName(allNames(code, "en")),
+    terms: [...allNames(code, "en"), ...allNames(code, "de")].map(normalize),
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name, "en"));
+
+export function isCountryCode(value: string): boolean {
+  return COUNTRY_INDEX.some((c) => c.code === value);
+}
+
+/** Country name for a code in the given language ("DE" → "Deutschland"). */
+export function countryName(code: string, lang: Lang = "en"): string {
+  const names = allNames(code, lang);
+  return names.length ? plainName(names) : code;
+}
+
+/** Code for a typed name or alias ("germany", "Deutschland", "UK"), or null. */
 export function matchCountry(input: string): string | null {
-  const needle = input.trim().toLowerCase();
-  return COUNTRIES.find((c) => c.toLowerCase() === needle) ?? null;
+  const needle = normalize(input);
+  if (!needle) return null;
+  return COUNTRY_INDEX.find((c) => c.terms.includes(needle))?.code ?? null;
+}
+
+/**
+ * Countries matching a search, best first: names starting with the query,
+ * then other names or abbreviations starting with it, then names containing it.
+ */
+export function searchCountries(query: string, limit = 8): { code: string; name: string }[] {
+  const needle = normalize(query);
+  if (!needle) return COUNTRY_INDEX;
+  const starts = COUNTRY_INDEX.filter((c) => normalize(c.name).startsWith(needle));
+  const aliasStarts = COUNTRY_INDEX.filter((c) => c.terms.some((t) => t.startsWith(needle)));
+  const contains = COUNTRY_INDEX.filter((c) => c.terms.some((t) => t.includes(needle)));
+  return [...new Set([...starts, ...aliasStarts, ...contains])].slice(0, limit);
 }

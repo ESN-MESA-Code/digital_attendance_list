@@ -2,6 +2,7 @@
 
 import type { Participant } from "@/types";
 import Image from "next/image";
+import { countryName, DEFAULT_EXPORT_LANG } from "@/lib/countries";
 
 interface Props {
   participants: Participant[];
@@ -48,7 +49,7 @@ export default function AttendanceTable({ participants }: Props) {
                 )}
               </td>
               <td className="px-3 py-2 text-gray-700">{p.first_name}</td>
-              <td className="px-3 py-2 text-gray-600">{p.nationality ?? "—"}</td>
+              <td className="px-3 py-2 text-gray-600">{countryName(p.nationality, DEFAULT_EXPORT_LANG)}</td>
               <td className="px-3 py-2 text-gray-600">{p.university ?? "—"}</td>
               <td className="px-3 py-2 text-gray-600">{p.exchange_program ?? "—"}</td>
               <td className="px-3 py-2 text-gray-600">

@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getWorkspaceUser } from "@/lib/supabase/session";
 import { generateAttendancePdf } from "@/lib/pdf/generate";
+import { parseLang } from "@/lib/countries";
 import type { Event, Participant } from "@/types";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  // Language for country names: ?lang=de (default) or ?lang=en
+  const lang = parseLang(req.nextUrl.searchParams.get("lang"));
 
   // Defence in depth – the proxy already blocks unauthenticated requests.
   if (!(await getWorkspaceUser())) {
@@ -38,7 +41,8 @@ export async function GET(
   try {
     const pdfBytes = await generateAttendancePdf(
       event as Event,
-      (participants ?? []) as Participant[]
+      (participants ?? []) as Participant[],
+      lang
     );
 
     const safeTitle = (event as Event).title.replace(/[^a-z0-9]/gi, "_").toLowerCase();

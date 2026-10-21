@@ -3,6 +3,7 @@ import path from "node:path";
 import { PDFDocument, rgb, PDFPage, PDFFont, PDFImage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { ESN_LOGO_PNG_BASE64 } from "./esn-logo";
+import { countryName, DEFAULT_EXPORT_LANG, type Lang } from "@/lib/countries";
 import type { Event, Participant } from "@/types";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -318,7 +319,8 @@ async function fetchImageBytes(url: string): Promise<Uint8Array | null> {
 
 export async function generateAttendancePdf(
   event: Event,
-  participants: Participant[]
+  participants: Participant[],
+  lang: Lang = DEFAULT_EXPORT_LANG
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
@@ -383,7 +385,7 @@ export async function generateAttendancePdf(
 
     textCell(C_LAST, p?.last_name ?? "");
     textCell(C_FIRST, p?.first_name ?? "");
-    textCell(C_NAT, p?.nationality ?? "");
+    textCell(C_NAT, p ? countryName(p.nationality, lang) : "");
 
     for (const o of UNI_OPTS) {
       const y = lineY(o.line);

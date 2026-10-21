@@ -7,6 +7,7 @@ const MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 export interface SavedDetails {
   first_name: string;
   last_name: string;
+  /** ISO country code, e.g. "DE" */
   nationality: string;
   university: string;
   exchange_program: string;

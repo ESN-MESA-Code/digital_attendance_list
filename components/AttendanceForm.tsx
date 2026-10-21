@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase/client";
 import SignaturePad, { type SignaturePadHandle } from "@/components/SignaturePad";
-import { COUNTRIES, matchCountry } from "@/lib/countries";
+import { isCountryCode, matchCountry } from "@/lib/countries";
+import CountryCombobox from "@/components/CountryCombobox";
 import {
   forgetSavedDetails,
   loadSavedDetails,
@@ -25,7 +26,8 @@ const schema = z.object({
   nationality: z
     .string()
     .min(1, "Nationality is required")
-    .refine((v) => matchCountry(v) !== null, "Please pick a country from the list"),
+    // ISO code from the country picker (raw text while nothing matches).
+    .refine(isCountryCode, "Please pick a country from the list"),
   university: z.enum(UNIVERSITIES, { error: "Please select your university" }),
   exchange_program: z.enum(EXCHANGE_PROGRAMS, {
     error: "Please select your exchange programme",
@@ -77,15 +79,23 @@ export default function AttendanceForm({ event, kiosk }: Props) {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+  } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { nationality: "" } });
 
   useEffect(() => {
     if (isKiosk) return;
     const saved = loadSavedDetails();
     if (saved) {
       // Values come from a cookie – anything invalid is caught by validation on submit.
-      reset({ ...saved, disclaimer_accepted: false } as FormData);
+      reset({
+        ...saved,
+        // Cookies saved before codes were used hold a country name.
+        nationality: isCountryCode(saved.nationality)
+          ? saved.nationality
+          : (matchCountry(saved.nationality) ?? ""),
+        disclaimer_accepted: false,
+      } as FormData);
       setUsedSaved(true);
     }
   }, [isKiosk, reset]);
@@ -157,7 +167,7 @@ export default function AttendanceForm({ event, kiosk }: Props) {
       const details: SavedDetails = {
         first_name: data.first_name,
         last_name: data.last_name,
-        nationality: matchCountry(data.nationality)!,
+        nationality: data.nationality,
         university: data.university,
         exchange_program: data.exchange_program,
         esn_card: data.esn_card,
@@ -352,24 +362,25 @@ export default function AttendanceForm({ event, kiosk }: Props) {
               </div>
             </div>
 
-            {/* Nationality – free typing with suggestions, validated against the list */}
+            {/* Nationality – type to search, validated against the list */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Nationality <span className="text-red-500">*</span>
               </label>
-              <input
-                {...register("nationality")}
-                type="text"
-                list="countries"
-                autoComplete="off"
-                placeholder="Start typing your country…"
-                className={inputClass}
+              <Controller
+                name="nationality"
+                control={control}
+                render={({ field }) => (
+                  <CountryCombobox
+                    name={field.name}
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Start typing your country…"
+                    className={inputClass}
+                  />
+                )}
               />
-              <datalist id="countries">
-                {COUNTRIES.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
               {errors.nationality && (
                 <p className="text-red-500 text-xs mt-1">{errors.nationality.message}</p>
               )}
