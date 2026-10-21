@@ -1,320 +1,431 @@
-import { PDFDocument, StandardFonts, rgb, PDFPage, PDFFont } from "pdf-lib";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { PDFDocument, rgb, PDFPage, PDFFont, PDFImage } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import { ESN_LOGO_PNG_BASE64 } from "./esn-logo";
 import type { Event, Participant } from "@/types";
 
-// ── A4 landscape for the wide participant table ─────────────────────────────
-const PAGE_W = 841;   // A4 landscape width  (pt)
-const PAGE_H = 595;   // A4 landscape height (pt)
-const MARGIN  = 36;
+/* ────────────────────────────────────────────────────────────────────────────
+   Layout of the official MESA e.V. "Teilnehmendenliste" (vertical / A4 portrait).
+   Every coordinate below was measured off the Word/PDF template, so the export
+   lines up with the printed form sheet. PDF user space: origin bottom-left, pt.
+──────────────────────────────────────────────────────────────────────────── */
 
-// ESN brand colours (0–1 range)
-const ESN_BLUE   = rgb(0.180, 0.192, 0.573); // #2E3192
-const ESN_CYAN   = rgb(0.000, 0.682, 0.937); // #00AEEF
-const BLACK      = rgb(0, 0, 0);
-const DARK_GRAY  = rgb(0.2, 0.2, 0.2);
-const MID_GRAY   = rgb(0.5, 0.5, 0.5);
-const LIGHT_GRAY = rgb(0.93, 0.93, 0.93);
-const WHITE      = rgb(1, 1, 1);
+const PAGE_W = 595.276; // A4 portrait
+const PAGE_H = 841.89;
 
-// Column widths (pts) — total must fit inside PAGE_W - 2*MARGIN = 769
-// #(26) | Nachname(90) | Vorname(80) | Nat(72) | Uni(90) | Programme(122) | ESNcard(52) | Signature(147) | Time(50)
-// sum = 26+90+80+72+90+122+52+147+50 = 729 pt  (40 pts spare for padding)
-const COLS = [
-  { label: "#",                      subLabel: "",                width: 26  },
-  { label: "Nachname",               subLabel: "Surname",         width: 90  },
-  { label: "Vorname",                subLabel: "First name",      width: 80  },
-  { label: "Nationalität",           subLabel: "Nationality",     width: 72  },
-  { label: "Universität",            subLabel: "University",      width: 90  },
-  { label: "Austauschprogramm",      subLabel: "Exchange Programme", width: 122 },
-  { label: "ESNcard",                subLabel: "",                width: 52  },
-  { label: "Unterschrift",           subLabel: "Signature",       width: 147 },
-  { label: "Zeit",                   subLabel: "Time",            width: 50  },
+// Table extents. The grid is flush left/right at these x values on every page.
+const TABLE_L = 34.3;
+const TABLE_R = 561.6;
+const TABLE_BOTTOM = 34.24; // lowest row baseline grid line
+
+// Column boundaries (x), left edge → right edge.
+const COL_X = [34.3, 53.2, 133.2, 205.7, 258.2, 318.3, 430.7, 470.7, 561.6];
+const C_NUM = 0, C_LAST = 1, C_FIRST = 2, C_NAT = 3, C_SIG = 7;
+
+const CELL_PAD = 3.05; // text inset from a column's left edge
+const ROW_H = 22;
+const HEADER_H = 19.6;
+
+// First page: the title block + info table sit above the participant table.
+const P1_TABLE_TOP = 603.84;
+// Continuation pages: participant table starts just below the top margin.
+const PN_TABLE_TOP = 813.24;
+
+const LINE_W = 0.5;
+const BLACK = rgb(0, 0, 0);
+const HEADER_FILL = rgb(0.90588, 0.90196, 0.90196); // #E7E6E6
+const MID_GRAY = rgb(0.5, 0.5, 0.5);
+
+// Font sizes, straight from the template.
+const FS_TITLE = 14;
+const FS_SUBTITLE = 12;
+const FS_INFO = 7.5;
+const FS_HEAD = 7;
+const FS_CELL = 7;
+const FS_DISC_HEAD = 6.5;
+const FS_DISC = 6;
+const FS_OPT = 6;
+
+// Checkbox option geometry, measured per column. `box` is the square's x,
+// `label` the x where the caption starts. Line 1 sits above line 2.
+const BOX_SIZE = 5;
+const OPT_LINE1_DY = 12.3; // baseline offset above the row's bottom grid line
+const OPT_LINE2_DY = 6.1;
+const CELL_TEXT_DY = 8.5; // single-line cell text baseline above the row bottom
+
+const UNI_OPTS = [
+  { value: "LMU", label: "LMU", box: 261.3, labelX: 268.95, line: 1 },
+  { value: "TUM", label: "TUM", box: 284.946, labelX: 292.578, line: 1 },
+  { value: "Other", label: "Other", box: 261.3, labelX: 268.95, line: 2 },
+] as const;
+
+const PROG_OPTS = [
+  { value: "Erasmus+", label: "Erasmus+", box: 321.35, labelX: 329.0, line: 1 },
+  { value: "LMUexchange", label: "LMUexchange", box: 359.492, labelX: 367.118, line: 1 },
+  { value: "Full-time degree", label: "Full-time degree", box: 321.35, labelX: 329.0, line: 2 },
+  { value: "Other", label: "Other", box: 375.692, labelX: 383.276, line: 2 },
+] as const;
+
+const ESN_OPTS = [
+  { checked: true, label: "Yes", box: 433.8, labelX: 441.45, line: 1 },
+  { checked: false, label: "No", box: 433.8, labelX: 441.45, line: 2 },
+] as const;
+
+const HEADERS = [
+  { de: "#", en: "" },
+  { de: "Nachname", en: "Surname" },
+  { de: "Vorname", en: "First name" },
+  { de: "Nationalität", en: "Nationality" },
+  { de: "Universität", en: "University" },
+  { de: "Austauschprogramm", en: "Exchange Program" },
+  { de: "ESNcard", en: "" },
+  { de: "Unterschrift", en: "Signature" },
 ];
-const ROW_H    = 52;
-const HEADER_H = 28; // table header row height
 
-function totalColWidth() {
-  return COLS.reduce((s, c) => s + c.width, 0);
+// Disclaimer block, pre-wrapped exactly as the template breaks it.
+const DISCLAIMER: Array<{ text: string; bold: boolean; gapBefore?: number }> = [
+  { text: "HAFTUNGSAUSSCHLUSS", bold: true },
+  {
+    text:
+      "Jegliche Haftung von MESA e.V. ist auf einer grob fahrlässigen Pflichtverletzung oder auf einer vorsätzlichen Pflichtverletzung seitens MESA e.V. beschränkt. Jede*r Teilnehmer*in ist volljährig und",
+    bold: false,
+  },
+  {
+    text:
+      "komplett selbst verantwortlich für die eigenen Handlungen; für eventuelle hieraus entstehende Schäden ist MESA e.V. nicht haftbar. Die Teilnahme erfolgt auf eigene Gefahr.",
+    bold: false,
+  },
+  { text: "DISCLAIMER", bold: true, gapBefore: 3.35 },
+  {
+    text:
+      "The responsibility of MESA e.V. is limited to gross breach of duty or infringement on behalf of MESA e.V. Every participant is of legal full age and is fully responsible for his or her actions; MESA",
+    bold: false,
+  },
+  {
+    text:
+      "e.V. is not responsible for damages caused by the participants. The participation in this event is at your own risk.",
+    bold: false,
+  },
+  {
+    text:
+      "Alle nachfolgend aufgeführten Teilnehmenden sind Personen, die wir zu einem ERASMUS-Aufenthalt motiviert haben oder die sich für einen ERASMUS Aufenthalt in",
+    bold: true,
+    gapBefore: 3.45,
+  },
+  { text: "Europa interessieren.", bold: true },
+];
+
+/* Liberation Sans is metric-compatible with Arial/Helvetica (what the template
+   is set in) but, unlike pdf-lib's built-in Helvetica, is not limited to
+   WinAnsi — so names like "Čermák" or "Şahin" render instead of throwing. */
+const FONT_DIR = path.join(process.cwd(), "lib", "pdf", "fonts");
+let fontCache: { reg: Buffer; bold: Buffer } | null = null;
+
+function loadFontBytes() {
+  if (!fontCache) {
+    fontCache = {
+      reg: readFileSync(path.join(FONT_DIR, "LiberationSans-Regular.ttf")),
+      bold: readFileSync(path.join(FONT_DIR, "LiberationSans-Bold.ttf")),
+    };
+  }
+  return fontCache;
+}
+
+type Fonts = { reg: PDFFont; bold: PDFFont };
+
+function colLeft(i: number) {
+  return COL_X[i];
+}
+function colWidth(i: number) {
+  return COL_X[i + 1] - COL_X[i];
 }
 
 function formatDateLong(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("de-DE", {
-    day:   "2-digit",
+    day: "2-digit",
     month: "2-digit",
-    year:  "numeric",
+    year: "numeric",
   });
 }
 
-function truncate(text: string, maxLen: number): string {
+/** Shorten `text` with an ellipsis until it fits `maxW` at `size`. */
+function fitText(text: string, font: PDFFont, size: number, maxW: number): string {
   if (!text) return "";
-  return text.length > maxLen ? text.slice(0, maxLen - 1) + "…" : text;
+  if (font.widthOfTextAtSize(text, size) <= maxW) return text;
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (font.widthOfTextAtSize(text.slice(0, mid) + "…", size) <= maxW) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo > 0 ? text.slice(0, lo) + "…" : "";
+}
+
+function hLine(page: PDFPage, y: number, x0 = TABLE_L, x1 = TABLE_R) {
+  page.drawLine({ start: { x: x0, y }, end: { x: x1, y }, thickness: LINE_W, color: BLACK });
+}
+function vLine(page: PDFPage, x: number, y0: number, y1: number) {
+  page.drawLine({ start: { x, y: y0 }, end: { x, y: y1 }, thickness: LINE_W, color: BLACK });
+}
+
+/** Empty square, plus a tick when `checked`. */
+function drawCheckbox(page: PDFPage, x: number, yBaseline: number, checked: boolean) {
+  page.drawRectangle({
+    x,
+    y: yBaseline,
+    width: BOX_SIZE,
+    height: BOX_SIZE,
+    borderColor: BLACK,
+    borderWidth: 0.45,
+  });
+  if (!checked) return;
+  const p = 0.9;
+  page.drawLine({
+    start: { x: x + p, y: yBaseline + BOX_SIZE * 0.52 },
+    end: { x: x + BOX_SIZE * 0.42, y: yBaseline + p },
+    thickness: 0.8,
+    color: BLACK,
+  });
+  page.drawLine({
+    start: { x: x + BOX_SIZE * 0.42, y: yBaseline + p },
+    end: { x: x + BOX_SIZE - p * 0.6, y: yBaseline + BOX_SIZE - p },
+    thickness: 0.8,
+    color: BLACK,
+  });
+}
+
+/** Grey header band + the two-language column captions. Returns the y below it. */
+function drawTableHeader(page: PDFPage, top: number, fonts: Fonts): number {
+  const bottom = top - HEADER_H;
+
+  for (let i = 0; i < HEADERS.length; i++) {
+    page.drawRectangle({
+      x: colLeft(i),
+      y: bottom,
+      width: colWidth(i),
+      height: HEADER_H,
+      color: HEADER_FILL,
+    });
+  }
+  hLine(page, top);
+  hLine(page, bottom);
+  for (let i = 0; i < COL_X.length; i++) vLine(page, COL_X[i], bottom, top);
+
+  for (let i = 0; i < HEADERS.length; i++) {
+    const { de, en } = HEADERS[i];
+    const cx = colLeft(i) + colWidth(i) / 2;
+    const centered = (t: string) => cx - fonts.bold.widthOfTextAtSize(t, FS_HEAD) / 2;
+
+    if (en) {
+      page.drawText(de, { x: centered(de), y: bottom + 11.3, size: FS_HEAD, font: fonts.bold, color: BLACK });
+      page.drawText(en, { x: centered(en), y: bottom + 3.25, size: FS_HEAD, font: fonts.bold, color: BLACK });
+    } else {
+      page.drawText(de, { x: centered(de), y: bottom + 7.3, size: FS_HEAD, font: fonts.bold, color: BLACK });
+    }
+  }
+  return bottom;
+}
+
+/** Title, logo, event info table and the bilingual disclaimer. Returns table top y. */
+function drawFirstPageHeader(page: PDFPage, event: Event, fonts: Fonts, logo: PDFImage | null): number {
+  const title = "TEILNEHMENDENLISTE: MESA e.V.";
+  page.drawText(title, { x: 39.5, y: 785.34, size: FS_TITLE, font: fonts.bold, color: BLACK });
+  page.drawLine({
+    start: { x: 39.5, y: 783.74 },
+    end: { x: 39.5 + fonts.bold.widthOfTextAtSize(title, FS_TITLE), y: 783.74 },
+    thickness: 0.8,
+    color: BLACK,
+  });
+  page.drawText("(Münchner Erasmus Studenten Assoziation)", {
+    x: 39.5,
+    y: 771.14,
+    size: FS_SUBTITLE,
+    font: fonts.reg,
+    color: BLACK,
+  });
+
+  if (logo) {
+    page.drawImage(logo, { x: 447.2, y: 753.59, width: 108.75, height: 60 });
+  }
+
+  // ── Info table ───────────────────────────────────────────────────────────
+  const ROW_A_TOP = 737.74, ROW_A_BOT = 716.24, ROW_B_BOT = 689.74, DISC_BOT = 619.84;
+
+  hLine(page, ROW_A_TOP);
+  hLine(page, ROW_A_BOT);
+  hLine(page, ROW_B_BOT);
+  hLine(page, DISC_BOT);
+  vLine(page, TABLE_L, DISC_BOT, ROW_A_TOP);
+  vLine(page, TABLE_R, DISC_BOT, ROW_A_TOP);
+  vLine(page, 109.2, ROW_A_BOT, ROW_A_TOP);
+  vLine(page, 457.9, ROW_A_BOT, ROW_A_TOP);
+  vLine(page, 417.9, ROW_B_BOT, ROW_A_TOP);
+  vLine(page, 154.3, ROW_B_BOT, ROW_A_BOT);
+  vLine(page, 297.9, ROW_B_BOT, ROW_A_BOT);
+
+  const label = (t: string, x: number, y: number) =>
+    page.drawText(t, { x, y, size: FS_INFO, font: fonts.bold, color: BLACK });
+  const value = (t: string, x: number, y: number, maxW: number) =>
+    page.drawText(fitText(t, fonts.reg, FS_INFO, maxW), {
+      x,
+      y,
+      size: FS_INFO,
+      font: fonts.reg,
+      color: BLACK,
+    });
+
+  label("Veranstaltung", 37.35, 724.34);
+  value(event.title, 112.25, 724.34, 417.9 - 112.25 - CELL_PAD);
+  label("Datum", 421.0, 724.34);
+  value(formatDateLong(event.event_date), 460.95, 724.34, TABLE_R - 460.95 - CELL_PAD);
+
+  label("Unterschrift verantwortliche*r", 37.35, 704.64);
+  label("MESAnt*in", 37.35, 695.99);
+  value(event.responsible_member ?? "", 157.35, 700.3, 297.9 - 157.35 - CELL_PAD);
+  label("Unterschrift LEI-", 301.0, 704.64);
+  label("Verantwortliche*r", 301.0, 695.99);
+  value(event.lei_responsible ?? "", 420.95, 700.3, TABLE_R - 420.95 - CELL_PAD);
+
+  // ── Disclaimer ───────────────────────────────────────────────────────────
+  let y = 680.44;
+  for (const line of DISCLAIMER) {
+    if (line.gapBefore) y -= line.gapBefore;
+    const size = line.bold ? FS_DISC_HEAD : FS_DISC;
+    page.drawText(line.text, {
+      x: 37.35,
+      y,
+      size,
+      font: line.bold ? fonts.bold : fonts.reg,
+      color: BLACK,
+    });
+    y -= line.bold ? 7.0 : 6.9;
+  }
+
+  return P1_TABLE_TOP;
 }
 
 async function fetchImageBytes(url: string): Promise<Uint8Array | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
-    const buf = await res.arrayBuffer();
-    return new Uint8Array(buf);
+    return new Uint8Array(await res.arrayBuffer());
   } catch {
     return null;
   }
-}
-
-function wrapText(text: string, maxChars: number): string[] {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    if ((current + " " + word).trim().length > maxChars) {
-      if (current) lines.push(current);
-      current = word;
-    } else {
-      current = (current + " " + word).trim();
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
-}
-
-/** Draw a labelled info row (Veranstaltung, Datum, …) and return the new y. */
-function drawInfoRow(
-  page: PDFPage,
-  label: string,
-  value: string,
-  x: number,
-  y: number,
-  rowH: number,
-  contentW: number,
-  fontBold: PDFFont,
-  fontReg: PDFFont
-): number {
-  const labelW = 210;
-  // border
-  page.drawRectangle({ x, y: y - rowH, width: contentW, height: rowH, borderColor: BLACK, borderWidth: 0.6 });
-  // divider between label and value
-  page.drawLine({ start: { x: x + labelW, y }, end: { x: x + labelW, y: y - rowH }, thickness: 0.6, color: BLACK });
-  // label text
-  page.drawText(label, { x: x + 5, y: y - rowH + 8, size: 8.5, font: fontBold, color: BLACK });
-  // value text
-  page.drawText(truncate(value, 70), { x: x + labelW + 6, y: y - rowH + 8, size: 8.5, font: fontReg, color: DARK_GRAY });
-  return y - rowH;
-}
-
-/** Draw the table header row and return the new y. */
-function drawTableHeader(page: PDFPage, y: number, fontBold: PDFFont): number {
-  let x = MARGIN;
-  for (const col of COLS) {
-    // header background
-    page.drawRectangle({ x, y: y - HEADER_H, width: col.width, height: HEADER_H, color: ESN_BLUE });
-    // column border
-    page.drawRectangle({ x, y: y - HEADER_H, width: col.width, height: HEADER_H, borderColor: WHITE, borderWidth: 0.3 });
-    // primary label
-    page.drawText(col.label, { x: x + 3, y: y - 12, size: 6.5, font: fontBold, color: WHITE });
-    // sub-label (italic would be nice but standard fonts don't support it — use smaller regular)
-    if (col.subLabel) {
-      page.drawText(col.subLabel, { x: x + 3, y: y - 21, size: 5.5, font: fontBold, color: rgb(0.8, 0.9, 1) });
-    }
-    x += col.width;
-  }
-  return y - HEADER_H;
 }
 
 export async function generateAttendancePdf(
   event: Event,
   participants: Participant[]
 ): Promise<Uint8Array> {
-  const pdfDoc   = await PDFDocument.create();
-  const fontReg  = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
 
-  const contentW = PAGE_W - 2 * MARGIN;
+  const fontBytes = loadFontBytes();
+  const fonts: Fonts = {
+    reg: await pdfDoc.embedFont(fontBytes.reg, { subset: true }),
+    bold: await pdfDoc.embedFont(fontBytes.bold, { subset: true }),
+  };
 
-  function addPage() {
-    return pdfDoc.addPage([PAGE_W, PAGE_H]);
+  let logo: PDFImage | null = null;
+  try {
+    logo = await pdfDoc.embedPng(Buffer.from(ESN_LOGO_PNG_BASE64, "base64"));
+  } catch {
+    logo = null;
   }
 
-  // ── PAGE 1 HEADER ──────────────────────────────────────────────────────────
-  let page = addPage();
-  let y = PAGE_H - MARGIN;
+  let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+  let rowTop = drawTableHeader(page, drawFirstPageHeader(page, event, fonts, logo), fonts);
 
-  // ESN branding block
-  page.drawRectangle({ x: MARGIN, y: y - 28, width: 120, height: 28, color: ESN_BLUE });
-  page.drawText("ESN", { x: MARGIN + 30, y: y - 20, size: 18, font: fontBold, color: WHITE });
-  page.drawText("✦", { x: MARGIN + 6,  y: y - 22, size: 16, font: fontBold, color: ESN_CYAN });
-  page.drawText("Erasmus Student Network", { x: MARGIN,      y: y - 40, size: 7, font: fontReg,  color: DARK_GRAY });
-  page.drawText("MESA München",            { x: MARGIN,      y: y - 50, size: 7.5, font: fontBold, color: ESN_BLUE });
-  y -= 62;
+  // Always print at least one page's worth of grid, so an empty list still
+  // prints as a usable blank form.
+  const rowCount = Math.max(
+    participants.length,
+    Math.floor((rowTop - TABLE_BOTTOM) / ROW_H)
+  );
 
-  // Title
-  page.drawText("TEILNEHMENDENLISTE: MESA e.V.", {
-    x: MARGIN, y, size: 16, font: fontBold, color: BLACK,
-  });
-  y -= 18;
-  page.drawText("(Münchner Erasmus Studenten Assoziation)", {
-    x: MARGIN, y, size: 12, font: fontReg, color: DARK_GRAY,
-  });
-  y -= 18;
-
-  // Thin horizontal rule
-  page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.8, color: MID_GRAY });
-  y -= 10;
-
-  // ── INFO TABLE ─────────────────────────────────────────────────────────────
-  const INFO_ROW_H = 22;
-  y = drawInfoRow(page, "Veranstaltung",                       event.title,
-                  MARGIN, y, INFO_ROW_H, contentW, fontBold, fontReg);
-  y = drawInfoRow(page, "Datum",                               formatDateLong(event.event_date),
-                  MARGIN, y, INFO_ROW_H, contentW, fontBold, fontReg);
-  y = drawInfoRow(page, "Unterschrift verantwortliche*r MESAnt*in", event.responsible_member ?? "",
-                  MARGIN, y, INFO_ROW_H, contentW, fontBold, fontReg);
-  y = drawInfoRow(page, "Unterschrift LEI-Verantwortliche*r",  event.lei_responsible ?? "",
-                  MARGIN, y, INFO_ROW_H, contentW, fontBold, fontReg);
-  y -= 10;
-
-  // ── DISCLAIMER BOX ─────────────────────────────────────────────────────────
-  const DISC_LINES = [
-    { bold: true,  text: "HAFTUNGSAUSSCHLUSS" },
-    { bold: false, text: "Jegliche Haftung von MESA e.V. ist auf einer grob fahrlässigen Pflichtverletzung oder auf einer vorsätzlichen Pflichtverletzung seitens" },
-    { bold: false, text: "MESA e.V. beschränkt. Jede*r Teilnehmer*in ist volljährig und komplett selbst verantwortlich für die eigenen Handlungen; für eventuelle" },
-    { bold: false, text: "hieraus entstehende Schäden ist MESA e.V. nicht haftbar. Die Teilnahme erfolgt auf eigene Gefahr." },
-    { bold: true,  text: "" },
-    { bold: true,  text: "DISCLAIMER" },
-    { bold: false, text: "The responsibility of MESA e.V. is limited to gross breach of duty or infringement on behalf of MESA e.V. Every participant is of legal" },
-    { bold: false, text: "full age and is fully responsible for his or her actions; MESA e.V. is not responsible for damages caused by the participants." },
-    { bold: false, text: "The participation in this event is at your own risk." },
-    { bold: true,  text: "" },
-    { bold: true,  text: "Alle nachfolgend aufgeführten Teilnehmenden sind Personen, die wir zu einem ERASMUS-Aufenthalt motiviert haben oder die sich für" },
-    { bold: true,  text: "einen ERASMUS Aufenthalt in Europa interessieren." },
-  ];
-  const lineH    = 9;
-  const boxH     = DISC_LINES.length * lineH + 10;
-  page.drawRectangle({ x: MARGIN, y: y - boxH, width: contentW, height: boxH, borderColor: BLACK, borderWidth: 0.6 });
-  let dy = y - 7;
-  for (const dl of DISC_LINES) {
-    page.drawText(dl.text, { x: MARGIN + 5, y: dy, size: 6.5, font: dl.bold ? fontBold : fontReg, color: BLACK });
-    dy -= lineH;
-  }
-  y = y - boxH - 10;
-
-  // ── PARTICIPANT TABLE ───────────────────────────────────────────────────────
-  y = drawTableHeader(page, y, fontBold);
-
-  for (let i = 0; i < participants.length; i++) {
-    const p = participants[i];
-
-    // New page if not enough room
-    if (y - ROW_H < MARGIN) {
-      page = addPage();
-      y = PAGE_H - MARGIN;
-      y = drawTableHeader(page, y, fontBold);
+  for (let i = 0; i < rowCount; i++) {
+    if (rowTop - ROW_H < TABLE_BOTTOM - 0.01) {
+      page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      rowTop = drawTableHeader(page, PN_TABLE_TOP, fonts);
     }
 
-    const rowY = y - ROW_H;
+    const bottom = rowTop - ROW_H;
+    hLine(page, bottom);
+    for (const x of COL_X) vLine(page, x, bottom, rowTop);
 
-    // Alternating row bg
-    if (i % 2 === 0) {
-      page.drawRectangle({ x: MARGIN, y: rowY, width: totalColWidth(), height: ROW_H, color: LIGHT_GRAY });
-    }
-    // Row border
-    page.drawRectangle({ x: MARGIN, y: rowY, width: totalColWidth(), height: ROW_H,
-                         borderColor: rgb(0.75, 0.75, 0.75), borderWidth: 0.4 });
+    const p: Participant | undefined = participants[i];
+    const textY = bottom + CELL_TEXT_DY;
+    const lineY = (n: 1 | 2) => bottom + (n === 1 ? OPT_LINE1_DY : OPT_LINE2_DY);
 
-    let x = MARGIN;
-    const midY = rowY + ROW_H / 2 - 4;
+    // Row number, centred in the "#" column.
+    const num = String(i + 1);
+    page.drawText(num, {
+      x: colLeft(C_NUM) + colWidth(C_NUM) / 2 - fonts.reg.widthOfTextAtSize(num, FS_CELL) / 2,
+      y: textY,
+      size: FS_CELL,
+      font: fonts.reg,
+      color: BLACK,
+    });
 
-    // Helper to draw a cell with a vertical right divider
-    const cell = (text: string, w: number, opts?: { size?: number }) => {
-      page.drawText(text, { x: x + 3, y: midY, size: opts?.size ?? 7.5, font: fontReg, color: BLACK });
-      page.drawLine({ start: { x: x + w, y: rowY }, end: { x: x + w, y: rowY + ROW_H },
-                      thickness: 0.3, color: rgb(0.75, 0.75, 0.75) });
-      x += w;
+    const textCell = (ci: number, text: string) => {
+      if (!text) return;
+      page.drawText(fitText(text, fonts.reg, FS_CELL, colWidth(ci) - 2 * CELL_PAD), {
+        x: colLeft(ci) + CELL_PAD,
+        y: textY,
+        size: FS_CELL,
+        font: fonts.reg,
+        color: BLACK,
+      });
     };
 
-    // # (row number)
-    cell(String(i + 1), COLS[0].width, { size: 7 });
+    textCell(C_LAST, p?.last_name ?? "");
+    textCell(C_FIRST, p?.first_name ?? "");
+    textCell(C_NAT, p?.nationality ?? "");
 
-    // Nachname
-    cell(truncate(p.last_name, 14), COLS[1].width);
-
-    // Vorname
-    cell(truncate(p.first_name, 13), COLS[2].width);
-
-    // Nationalität
-    cell(truncate(p.nationality ?? "", 12), COLS[3].width);
-
-    // Universität — show checkmark-style
-    const uniW   = COLS[4].width;
-    const uniCol = x;
-    const uniOptions: Array<"LMU" | "TUM" | "Other"> = ["LMU", "TUM", "Other"];
-    for (let r = 0; r < uniOptions.length; r++) {
-      const optY = rowY + ROW_H - 12 - r * 14;
-      const checked = p.university === uniOptions[r];
-      page.drawText(checked ? "■" : "□", { x: uniCol + 3, y: optY, size: 7, font: fontReg, color: BLACK });
-      page.drawText(uniOptions[r], { x: uniCol + 12, y: optY, size: 6.5, font: fontReg, color: BLACK });
+    for (const o of UNI_OPTS) {
+      const y = lineY(o.line);
+      drawCheckbox(page, o.box, y, p?.university === o.value);
+      page.drawText(o.label, { x: o.labelX, y, size: FS_OPT, font: fonts.reg, color: BLACK });
     }
-    page.drawLine({ start: { x: uniCol + uniW, y: rowY }, end: { x: uniCol + uniW, y: rowY + ROW_H },
-                    thickness: 0.3, color: rgb(0.75, 0.75, 0.75) });
-    x += uniW;
-
-    // Austauschprogramm
-    const progW   = COLS[5].width;
-    const progCol = x;
-    const progOptions: Array<"Erasmus+" | "LMUexchange" | "Full-time degree" | "Other"> =
-      ["Erasmus+", "LMUexchange", "Full-time degree", "Other"];
-    for (let r = 0; r < progOptions.length; r++) {
-      const optY = rowY + ROW_H - 12 - r * 11;
-      const checked = p.exchange_program === progOptions[r];
-      page.drawText(checked ? "■" : "□", { x: progCol + 3,  y: optY, size: 7,   font: fontReg, color: BLACK });
-      page.drawText(progOptions[r],       { x: progCol + 12, y: optY, size: 6.5, font: fontReg, color: BLACK });
+    for (const o of PROG_OPTS) {
+      const y = lineY(o.line);
+      drawCheckbox(page, o.box, y, p?.exchange_program === o.value);
+      page.drawText(o.label, { x: o.labelX, y, size: FS_OPT, font: fonts.reg, color: BLACK });
     }
-    page.drawLine({ start: { x: progCol + progW, y: rowY }, end: { x: progCol + progW, y: rowY + ROW_H },
-                    thickness: 0.3, color: rgb(0.75, 0.75, 0.75) });
-    x += progW;
+    for (const o of ESN_OPTS) {
+      const y = lineY(o.line);
+      drawCheckbox(page, o.box, y, p?.esn_card === o.checked);
+      page.drawText(o.label, { x: o.labelX, y, size: FS_OPT, font: fonts.reg, color: BLACK });
+    }
 
-    // ESNcard Yes/No
-    const esnW   = COLS[6].width;
-    const esnCol = x;
-    const yesChecked = p.esn_card === true;
-    const noChecked  = p.esn_card === false;
-    page.drawText(yesChecked ? "■" : "□", { x: esnCol + 3,  y: midY + 6, size: 7, font: fontReg, color: BLACK });
-    page.drawText("Yes",                   { x: esnCol + 12, y: midY + 6, size: 6.5, font: fontReg, color: BLACK });
-    page.drawText(noChecked  ? "■" : "□", { x: esnCol + 3,  y: midY - 6, size: 7, font: fontReg, color: BLACK });
-    page.drawText("No",                    { x: esnCol + 12, y: midY - 6, size: 6.5, font: fontReg, color: BLACK });
-    page.drawLine({ start: { x: esnCol + esnW, y: rowY }, end: { x: esnCol + esnW, y: rowY + ROW_H },
-                    thickness: 0.3, color: rgb(0.75, 0.75, 0.75) });
-    x += esnW;
-
-    // Signature image
-    const sigW   = COLS[7].width;
-    const sigCol = x;
-    if (p.signature_url) {
-      const imgBytes = await fetchImageBytes(p.signature_url);
-      if (imgBytes) {
+    if (p?.signature_url) {
+      const bytes = await fetchImageBytes(p.signature_url);
+      if (bytes) {
         try {
-          const img      = await pdfDoc.embedPng(imgBytes);
-          const maxSigW  = sigW - 6;
-          const maxSigH  = ROW_H - 8;
-          const dims     = img.scaleToFit(maxSigW, maxSigH);
+          const img = await pdfDoc.embedPng(bytes);
+          const dims = img.scaleToFit(colWidth(C_SIG) - 2 * CELL_PAD, ROW_H - 4);
           page.drawImage(img, {
-            x:      sigCol + 3,
-            y:      rowY + (ROW_H - dims.height) / 2,
-            width:  dims.width,
+            x: colLeft(C_SIG) + (colWidth(C_SIG) - dims.width) / 2,
+            y: bottom + (ROW_H - dims.height) / 2,
+            width: dims.width,
             height: dims.height,
           });
         } catch {
-          page.drawText("(error)", { x: sigCol + 3, y: midY, size: 6, font: fontReg, color: MID_GRAY });
+          page.drawText("(Fehler)", {
+            x: colLeft(C_SIG) + CELL_PAD,
+            y: textY,
+            size: FS_OPT,
+            font: fonts.reg,
+            color: MID_GRAY,
+          });
         }
       }
     }
-    page.drawLine({ start: { x: sigCol + sigW, y: rowY }, end: { x: sigCol + sigW, y: rowY + ROW_H },
-                    thickness: 0.3, color: rgb(0.75, 0.75, 0.75) });
-    x += sigW;
 
-    // Zeit (time)
-    const timeStr = new Date(p.created_at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-    cell(timeStr, COLS[8].width, { size: 7 });
-
-    y = rowY;
+    rowTop = bottom;
   }
 
   return await pdfDoc.save();
