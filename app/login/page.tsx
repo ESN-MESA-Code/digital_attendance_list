@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { WORKSPACE_DOMAIN } from "@/lib/auth";
+import { LOCAL_ORGANISER_EMAIL, localLoginEnabled } from "@/lib/localLogin";
 
 const ERRORS: Record<string, string> = {
   domain: `Please sign in with your @${WORKSPACE_DOMAIN} Google Workspace account.`,
@@ -71,6 +72,18 @@ function LoginForm() {
         </svg>
         {loading ? "Redirecting…" : "Sign in with Google"}
       </button>
+
+      {localLoginEnabled() && (
+        <form action="/auth/local-login" method="post" className="mt-4 pt-4 border-t border-dashed border-gray-300">
+          <input type="hidden" name="next" value={next} />
+          <button className="w-full rounded-md border border-dashed border-esn px-4 py-2.5 text-sm font-medium text-esn hover:bg-esn/5">
+            Local test sign-in
+          </button>
+          <p className="text-xs text-gray-400 mt-2">
+            Local Supabase only – signs in as {LOCAL_ORGANISER_EMAIL} from supabase/seed.sql.
+          </p>
+        </form>
+      )}
     </div>
   );
 }

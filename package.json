@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "node scripts/dev-local.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -13,7 +14,8 @@
     "test:e2e": "playwright test",
     "test:all": "vitest run && playwright test",
     "supabase:start": "npx -y supabase@2.121.0 start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,mailpit,postgres-meta",
-    "supabase:stop": "npx -y supabase@2.121.0 stop"
+    "supabase:stop": "npx -y supabase@2.121.0 stop",
+    "seed:demo": "node scripts/seed-demo.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -78,3 +78,10 @@ test("responses forbid framing and MIME sniffing and keep the token out of Refer
     expect(h["referrer-policy"]).toBe("same-origin");
   }
 });
+
+test("the local test sign-in signs in as the seeded organiser (local Supabase only)", async ({ page }) => {
+  await page.goto("/login?next=/dashboard/events");
+  await page.getByRole("button", { name: "Local test sign-in" }).click();
+  await expect(page).toHaveURL("/dashboard/events");
+  await expect(page.getByText("organiser@esnmesa.org")).toBeVisible();
+});

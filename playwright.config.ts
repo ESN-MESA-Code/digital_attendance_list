@@ -34,6 +34,8 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON_KEY,
       SUPABASE_SERVICE_ROLE_KEY: SERVICE_ROLE_KEY,
       NEXT_PUBLIC_GOOGLE_WORKSPACE_DOMAIN: "esnmesa.org",
+      // The "Local test sign-in" of `npm run dev:local`
+      NEXT_PUBLIC_LOCAL_LOGIN: "true",
     },
   },
 });

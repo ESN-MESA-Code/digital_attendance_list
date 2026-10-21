@@ -129,6 +129,25 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) – you will be redirected to the event dashboard.
 
+### Try it locally without touching real data
+
+To click through the app (or a branch) safely, run it against a local Supabase
+instead of the project in `.env.local`. Needs Docker or Podman:
+
+```bash
+npm run supabase:start   # local database from supabase/migrations + seed.sql
+npm run seed:demo        # demo events and participants (run again to reset them)
+npm run dev:local        # the app on http://localhost:3000 with the local keys
+```
+
+Google sign-in does not work against the local stack, so the login page then shows a
+**Local test sign-in** button (organiser@esnmesa.org from `supabase/seed.sql`). It only
+appears with `npm run dev:local` and only while the app talks to a Supabase on your own
+machine. `seed:demo` prints the participant-form link of each demo event; open one on
+your phone via your computer's IP address, or in a narrow browser window.
+`npx supabase@2.121.0 db reset` wipes the local database back to the seed.
+Stop `dev:local` before `npm run test:e2e`: Next.js runs only one dev server per folder.
+
 ### 7. Deploy
 
 Deploy to [Vercel](https://vercel.com) or any Node.js-compatible host. Make sure to set the four environment variables in your hosting environment.
