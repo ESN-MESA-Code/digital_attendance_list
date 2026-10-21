@@ -15,7 +15,11 @@ test("creates an event and lands on its QR code page", async ({ page }) => {
   await page.getByRole("button", { name: "+ New Event" }).click();
   await page.getByPlaceholder("Event title").fill(title);
   await page.locator('input[name="event_date"]').fill("2026-11-05T19:00");
-  await page.getByPlaceholder("Name of responsible MESA member").fill("Rita Responsible");
+  // Only title and date: the responsible MESA member is the creator, the LEI
+  // person signs by hand, and there is no description
+  await expect(page.getByPlaceholder("Name of responsible MESA member")).toHaveCount(0);
+  await expect(page.getByPlaceholder("Name of LEI responsible person")).toHaveCount(0);
+  await expect(page.getByPlaceholder("Event description")).toHaveCount(0);
   await page.getByRole("button", { name: "Create Event" }).click();
   await expect(page.getByRole("heading", { name: "Attendance QR Code" })).toBeVisible();
 
@@ -26,6 +30,7 @@ test("creates an event and lands on its QR code page", async ({ page }) => {
     await expect(page.getByText(`/event/${data!.public_token}`)).toBeVisible();
     expect(data!.public_token).toMatch(/^[0-9a-f]{32}$/);
     expect(data!.created_by).toBe(ORGANISER.email);
+    await expect(page.getByText("Responsible: Test Organiser")).toBeVisible();
   } finally {
     await admin.from("events").delete().eq("id", data!.id);
   }
@@ -289,7 +294,8 @@ test.describe("in Munich", () => {
     await page.getByRole("button", { name: "Edit" }).click();
     // Pre-filled with the current values
     await expect(page.getByPlaceholder("Event title")).toHaveValue(event.title);
-    await expect(page.getByPlaceholder("Name of LEI responsible person")).toHaveValue("Lea LEI");
+    // The responsible member is not editable
+    await expect(page.getByPlaceholder("Name of responsible MESA member")).toHaveCount(0);
 
     // Cancel changes nothing
     await page.getByPlaceholder("Event title").fill("Discarded");
@@ -298,15 +304,12 @@ test.describe("in Munich", () => {
 
     await page.getByRole("button", { name: "Edit" }).click();
     await page.getByPlaceholder("Event title").fill("Stammtisch (typo fixed)");
-    await page.getByPlaceholder("Event description").fill("New description");
     await page.locator('input[name="event_date"]').fill("2026-12-01T20:30");
-    await page.getByPlaceholder("Name of responsible MESA member").fill("Rita Fixed");
     await page.getByRole("button", { name: "Save changes" }).click();
 
     await expect(page.getByRole("heading", { name: "Stammtisch (typo fixed)" })).toBeVisible();
-    await expect(page.getByText("New description")).toBeVisible();
     await expect(page.getByText("01 December 2026 at 20:30")).toBeVisible();
-    await expect(page.getByText("Responsible: Rita Fixed · LEI: Lea LEI")).toBeVisible();
+    await expect(page.getByText("Responsible: Rita Responsible", { exact: true })).toBeVisible();
     await expect(page).toHaveURL(`/dashboard/events/${event.id}`);
     await expect(page.getByText(`/event/${event.public_token}`)).toBeVisible();
 
@@ -314,9 +317,7 @@ test.describe("in Munich", () => {
     expect(data).toMatchObject({
       public_token: event.public_token,
       title: "Stammtisch (typo fixed)",
-      description: "New description",
-      responsible_member: "Rita Fixed",
-      lei_responsible: "Lea LEI",
+      responsible_member: "Rita Responsible",
     });
     expect(new Date(data!.event_date).toISOString()).toBe("2026-12-01T19:30:00.000Z");
 

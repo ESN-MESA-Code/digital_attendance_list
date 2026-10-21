@@ -18,7 +18,6 @@ export default function EventsDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   // Picking events for the combined PDF: null when not exporting.
   const [selected, setSelected] = useState<Set<string> | null>(null);
@@ -36,22 +35,17 @@ export default function EventsDashboard() {
       if (!error && data) setEvents(data as Event[]);
       setLoading(false);
     }
-    async function fetchUserName() {
+    async function fetchUser() {
       const { data } = await supabase.auth.getUser();
-      const meta = data.user?.user_metadata;
-      setUserName(meta?.full_name ?? meta?.name ?? "");
       setUserEmail(data.user?.email?.toLowerCase() ?? null);
     }
     fetchEvents();
-    fetchUserName();
+    fetchUser();
   }, []);
 
   async function handleCreate(data: {
     title: string;
-    description?: string;
     event_date: string;
-    responsible_member?: string;
-    lei_responsible?: string;
   }) {
     setSubmitting(true);
     setError(null);
@@ -61,10 +55,7 @@ export default function EventsDashboard() {
       .from("events")
       .insert({
         title: data.title,
-        description: data.description ?? "",
         event_date: fromDateTimeLocal(data.event_date),
-        responsible_member: data.responsible_member ?? null,
-        lei_responsible: data.lei_responsible ?? null,
         public_token: publicToken,
       })
       .select()
@@ -152,7 +143,7 @@ export default function EventsDashboard() {
       {showForm && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">Create Event</h2>
-          <EventForm onSubmit={handleCreate} loading={submitting} defaultResponsible={userName} />
+          <EventForm onSubmit={handleCreate} loading={submitting} />
         </div>
       )}
 

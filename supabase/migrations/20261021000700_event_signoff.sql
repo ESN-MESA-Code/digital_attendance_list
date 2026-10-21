@@ -10,6 +10,10 @@
 -- Only the event's creator may sign off; events from before creators were
 -- recorded (created_by is null) may be signed off by any organiser. For
 -- organisers a sign-off is final – an admin can undo it in SQL.
+--
+-- The responsible MESA member is always the creator, taken from their Google
+-- account; the LEI responsible person signs the printed list by hand, so the
+-- app no longer stores a name for them. Older events keep their names.
 -- ============================================================
 
 alter table public.events
@@ -34,11 +38,11 @@ alter table public.events drop constraint if exists events_filed_after_signoff_c
 alter table public.events
   add constraint events_filed_after_signoff_check check (filed_at is null or signed_off_at is not null);
 
--- ── Who may sign off, and when ─────────────────────────────────────────────
--- RLS lets every organiser update events (to fix typos), so the sign-off
--- rules live in a trigger. It applies to signed-in users (the API); the
--- service role and SQL run by admins are not restricted.
-create or replace function public.guard_event_signoff()
+-- ── Who may sign off, and when; who is responsible ─────────────────────────
+-- RLS lets every organiser update events (to fix typos), so these rules live
+-- in a trigger. It applies to signed-in users (the API); the service role
+-- and SQL run by admins are not restricted.
+create or replace function public.guard_event_writes()
 returns trigger
 language plpgsql
 set search_path = ''
@@ -51,7 +55,14 @@ begin
   end if;
 
   if tg_op = 'INSERT' then
-    -- New events start open; the creator is whoever creates them.
+    -- New events start open; the creator is whoever creates them, and is
+    -- the responsible MESA member (Google name, else the email).
+    new.responsible_member := coalesce(
+      nullif(auth.jwt() -> 'user_metadata' ->> 'full_name', ''),
+      nullif(auth.jwt() -> 'user_metadata' ->> 'name', ''),
+      auth.jwt() ->> 'email'
+    );
+    new.lei_responsible := null;
     new.signed_off_at := null;
     new.signed_off_by := null;
     new.organiser_signature := null;
@@ -64,6 +75,9 @@ begin
   if new.created_by is distinct from old.created_by then
     raise exception 'The creator of an event cannot be changed' using errcode = '42501';
   end if;
+  -- Fixed when the event is created; editing an event leaves them alone.
+  new.responsible_member := old.responsible_member;
+  new.lei_responsible := old.lei_responsible;
 
   if (new.signed_off_at, new.signed_off_by, new.organiser_signature)
      is distinct from (old.signed_off_at, old.signed_off_by, old.organiser_signature) then
@@ -85,12 +99,12 @@ begin
 end;
 $$;
 
-revoke all on function public.guard_event_signoff() from public, anon, authenticated;
+revoke all on function public.guard_event_writes() from public, anon, authenticated;
 
-drop trigger if exists guard_event_signoff on public.events;
-create trigger guard_event_signoff
+drop trigger if exists guard_event_writes on public.events;
+create trigger guard_event_writes
   before insert or update on public.events
-  for each row execute function public.guard_event_signoff();
+  for each row execute function public.guard_event_writes();
 
 -- ── Closed events take no new sign-ins ─────────────────────────────────────
 -- Participants cannot read events, so the policy asks a definer function.

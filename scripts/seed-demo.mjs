@@ -16,16 +16,19 @@ const db = createClient(LOCAL_ENV.NEXT_PUBLIC_SUPABASE_URL, LOCAL_ENV.SUPABASE_S
 const day = (d) => new Date(Date.now() + d * 86_400_000).toISOString();
 const token = () => crypto.randomUUID().replace(/-/g, "");
 
+// The app takes the responsible member from the creator's Google account.
+const mine = { created_by: ORGANISER, responsible_member: "Test Organiser" };
 const signedOff = (by, d) => ({ signed_off_at: day(d), signed_off_by: by, organiser_signature: SIGNATURE });
 
 // One of each state: open (yours), signed off (yours), signed off and filed
 // (someone else's), and an older event without a creator.
 const events = [
-  { title: "Stammtisch Oktober", event_date: day(2), created_by: ORGANISER },
-  { title: "Pub Crawl Maxvorstadt", event_date: day(-7), created_by: ORGANISER, ...signedOff(ORGANISER, -6) },
+  { title: "Stammtisch Oktober", event_date: day(2), ...mine },
+  { title: "Pub Crawl Maxvorstadt", event_date: day(-7), ...mine, ...signedOff(ORGANISER, -6) },
   { title: "Welcome Brunch", event_date: day(-14), created_by: "someone-else@esnmesa.org",
-    ...signedOff("someone-else@esnmesa.org", -13), filed_at: day(-10), filed_by: "someone-else@esnmesa.org" },
-  { title: "Museum Night", event_date: day(-30), created_by: null },
+    responsible_member: "Someone Else", ...signedOff("someone-else@esnmesa.org", -13),
+    filed_at: day(-10), filed_by: "someone-else@esnmesa.org" },
+  { title: "Museum Night", event_date: day(-30), created_by: null, responsible_member: "Old Organiser" },
 ];
 
 const people = [
@@ -42,8 +45,7 @@ async function main() {
 
   const { data: created, error } = await db
     .from("events")
-    .insert(events.map((e) => ({ description: DEMO, responsible_member: "Test Organiser",
-      lei_responsible: "Lea LEI", public_token: token(), ...e })))
+    .insert(events.map((e) => ({ description: DEMO, public_token: token(), ...e })))
     .select("id, title, public_token");
   if (error) throw error;
 
