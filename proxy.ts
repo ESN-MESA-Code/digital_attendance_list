@@ -3,8 +3,8 @@ import { createServerClient } from "@supabase/ssr";
 import { isWorkspaceUser } from "@/lib/auth";
 
 // Refreshes the Supabase session on every request and keeps organiser-only
-// routes behind the Google Workspace login. The public attendance form
-// (/event/[token]) stays open.
+// routes (including the kiosk form on organiser devices) behind the Google
+// Workspace login. The public attendance form (/event/[token]) stays open.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -33,7 +33,10 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname, search } = request.nextUrl;
-  const isProtected = pathname.startsWith("/dashboard") || pathname.startsWith("/api/export");
+  const isProtected =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/kiosk") ||
+    pathname.startsWith("/api/export");
 
   if (isProtected && !isWorkspaceUser(user)) {
     if (pathname.startsWith("/api/")) {
@@ -50,5 +53,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/export/:path*", "/login", "/auth/:path*"],
+  matcher: ["/dashboard/:path*", "/kiosk/:path*", "/api/export/:path*", "/login", "/auth/:path*"],
 };

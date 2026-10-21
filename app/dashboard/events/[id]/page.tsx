@@ -83,6 +83,18 @@ export default function EventDetailPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center">
         <h2 className="text-lg font-semibold mb-4 self-start">Attendance QR Code</h2>
         <QRCodeDisplay url={attendanceUrl} size={220} />
+        <div className="mt-6 pt-4 border-t border-gray-200 w-full text-center">
+          <Link
+            href={`/kiosk/${event.id}`}
+            className="inline-block bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark transition-colors"
+          >
+            Sign in on this device
+          </Link>
+          <p className="text-xs text-gray-400 mt-2">
+            For participants without a phone or internet: opens the form on your device and
+            clears it after each person.
+          </p>
+        </div>
       </div>
 
       {/* Participants */}

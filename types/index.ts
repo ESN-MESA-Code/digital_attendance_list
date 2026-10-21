@@ -22,6 +22,10 @@ export interface Participant {
   exchange_program: string | null;
   esn_card: boolean | null;
   signature_url: string | null;
+  /** "self" (own phone) | "kiosk" (signed in on an organiser's device) */
+  entry_method: "self" | "kiosk";
+  /** Email of the organiser whose device recorded a kiosk sign-in */
+  recorded_by: string | null;
   created_at: string;
 }
 

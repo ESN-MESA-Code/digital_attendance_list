@@ -36,7 +36,17 @@ export default function AttendanceTable({ participants }: Props) {
           {participants.map((p, idx) => (
             <tr key={p.id} className="hover:bg-gray-50">
               <td className="px-3 py-2 text-gray-400 text-xs">{idx + 1}</td>
-              <td className="px-3 py-2 font-medium text-gray-900">{p.last_name}</td>
+              <td className="px-3 py-2 font-medium text-gray-900">
+                {p.last_name}
+                {p.entry_method === "kiosk" && (
+                  <span
+                    title={`Signed in on ${p.recorded_by ?? "an organiser"}'s device`}
+                    className="ml-2 align-middle rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-gray-500"
+                  >
+                    Kiosk
+                  </span>
+                )}
+              </td>
               <td className="px-3 py-2 text-gray-700">{p.first_name}</td>
               <td className="px-3 py-2 text-gray-600">{p.nationality ?? "—"}</td>
               <td className="px-3 py-2 text-gray-600">{p.university ?? "—"}</td>
