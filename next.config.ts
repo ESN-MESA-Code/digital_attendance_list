@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     // Pages rendered on request read their legal texts from legal/*.md.
     "/event/[token]": ["./legal/*.md"],
     "/kiosk/[id]": ["./legal/*.md"],
+    "/confidentiality": ["./legal/*.md"],
   },
   // No framing (clickjacking on the forms), no MIME sniffing, and the QR code
   // token in /event/[token] never leaves the site in a Referer header.

@@ -18,6 +18,14 @@ const JWT_SECRET =
 export const ORGANISER = { email: "organiser@esnmesa.org", password: "local-test-password" };
 /** Only for the sign-out test: signing out ends all of a user's sessions. */
 export const SIGNOUT_ORGANISER = { email: "signout@esnmesa.org", password: "local-test-password" };
+/** Has not accepted the confidentiality rules (reset by the tests that use it). */
+export const NEW_ORGANISER = { email: "newcomer@esnmesa.org", password: "local-test-password" };
+
+/** Removes the new organiser's acceptances, so they are asked again. */
+export async function resetNewOrganiser() {
+  const { error } = await admin.from("organiser_acknowledgements").delete().eq("email", NEW_ORGANISER.email);
+  if (error) throw error;
+}
 
 export const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },

@@ -57,7 +57,8 @@ Organisator*innen melden sich mit ihrem @esnmesa.org-Google-Konto an ({{processo
 Wir erhalten Name, E-Mail-Adresse, Profilbild und Konto-ID; das Profilbild wird von Google
 geladen, das dabei die IP-Adresse sieht. Die App speichert, wer eine Liste angelegt, Einträge
 dafür aufgenommen, (mit Unterschrift) abgezeichnet und abgelegt hat; das bleibt so lange
-gespeichert wie die Veranstaltung. Der Anmeldedienst speichert IP-Adresse und Browser jeder
+gespeichert wie die Veranstaltung. Außerdem speichert sie, wann Organisator*innen die
+Vertraulichkeitsregeln akzeptiert haben, bis zum Ende des fünften Kalenderjahres danach. Der Anmeldedienst speichert IP-Adresse und Browser jeder
 Anmeldung zur Sicherheit; wir löschen diese nach 30 Tagen. Rechtsgrundlage: unser
 berechtigtes Interesse an einem sicheren Zugang und daran, wer für eine Liste verantwortlich
 ist (Art. 6 Abs. 1 lit. f DSGVO). Die Anmelde-Cookies sind unbedingt erforderlich und
