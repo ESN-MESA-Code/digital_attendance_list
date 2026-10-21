@@ -13,6 +13,7 @@ deploy) – no code changes needed.
 | [`privacy.de.md`](privacy.de.md) | Datenschutzerklärung, German – must say the same as the English one | `/datenschutz` |
 | [`form-disclaimer.en.md`](form-disclaimer.en.md) | Liability disclaimer box on the attendance form | form, step 1 |
 | [`form-data-processing.en.md`](form-data-processing.en.md) | "Data processing" box on the attendance form | form, step 1 |
+| [`organiser-confidentiality.md`](organiser-confidentiality.md) | Confidentiality rules organisers accept before the organiser area opens (English and German) | `/confidentiality` |
 
 ## Editing
 
@@ -34,5 +35,9 @@ deploy) – no code changes needed.
 - **Retention period** (`retention` in `details.json`): the automatic deletion runs in
   the database, so it also needs a new migration in `supabase/migrations/` that changes
   `public.delete_expired_events()` (see `20261021001100_retention_five_years.sql`).
+- **Organisers' confidentiality rules** (`organiser-confidentiality.md`): a change in
+  substance needs a new `confidentiality_version` in `details.json` and a migration that
+  changes `public.confidentiality_version()` (a test checks they match); every organiser
+  is then asked to accept again.
 - **The printed PDF** has its own bilingual disclaimer, laid out line by line in
   `lib/pdf/generate.ts`.

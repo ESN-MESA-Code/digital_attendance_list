@@ -92,12 +92,12 @@ depend on consent), and a withdrawal would delete exactly the proof the list exi
 | | |
 | --- | --- |
 | Data subjects | MESA members acting as organisers |
-| Data | From Google: name, email, profile picture URL, account ID (in Supabase Auth); session cookies; IP address and user agent of logins (Supabase Auth: `auth.audit_log_entries`, `auth.sessions`); in events: creator email, sign-off (time, email, handwritten signature), filed-in-office (time, email), kiosk sign-ins recorded (email) |
-| Purpose | Secure access to the dashboard; accountability for each list |
+| Data | From Google: name, email, profile picture URL, account ID (in Supabase Auth); session cookies; IP address and user agent of logins (Supabase Auth: `auth.audit_log_entries`, `auth.sessions`); in events: creator email, sign-off (time, email, handwritten signature), filed-in-office (time, email), kiosk sign-ins recorded (email); acceptance of the confidentiality rules (email, text version, time) |
+| Purpose | Secure access to the dashboard; accountability for each list; proof that everyone with access is bound to confidentiality |
 | Legal basis | Legitimate interest, Art. 6(1)(f) GDPR (and the membership relationship) |
 | Cookies | Supabase session cookies, strictly necessary – § 25(2) No. 2 TDDDG, no consent |
 | Third party | The profile picture is loaded from Google's servers (`referrerpolicy="no-referrer"`), so Google sees the organiser's IP address |
-| Retention | Event-related data as long as the event (section 5); login IP addresses and user agents 30 days (nightly job, section 5); Auth accounts are deleted by an admin when the person leaves the organiser role |
+| Retention | Event-related data as long as the event (section 5); acceptances of the confidentiality rules until the end of the fifth calendar year after they were given; login IP addresses and user agents 30 days (nightly job, section 5); Auth accounts are deleted by an admin when the person leaves the organiser role |
 
 ### 2.4 Hosting and technical logs
 
@@ -168,6 +168,7 @@ protection documents as evidence (Art. 5(2)).
 | What | When deleted | How |
 | --- | --- | --- |
 | Events and their sign-ins | End of the fifth calendar year after the event (event in 2026 → 31 Dec 2031) | Nightly `pg_cron` job `delete-expired-events` (03:30 UTC) runs `public.delete_expired_events()`; participants are deleted with their event (`on delete cascade`) ([job](../supabase/migrations/20261021000800_retention.sql), [period](../supabase/migrations/20261021001100_retention_five_years.sql), tested in [`tests/db/retention.test.ts`](../tests/db/retention.test.ts)) |
+| Acceptances of the confidentiality rules | End of the fifth calendar year after acceptance (the organiser is then asked again) | Nightly `pg_cron` job `delete-expired-acknowledgements` (03:50 UTC) ([migration](../supabase/migrations/20261021001400_organiser_confidentiality.sql)) |
 | Organisers' login IP addresses and user agents | After 30 days | Nightly `pg_cron` job `purge-auth-ip-addresses` (03:45 UTC) deletes older `auth.audit_log_entries` and clears `ip`/`user_agent` of older `auth.sessions` ([migration](../supabase/migrations/20261021001300_purge_auth_ip_addresses.sql)) |
 | A single sign-in after an objection | Promptly after the request, or once the year's report to funders is done (section 2.1) | Manually by an admin (section 6) |
 | Events deleted early | Any time | Only by an admin in SQL; its sign-ins go with it. The API refuses deletes of events and sign-ins for everyone, so a list – the proof that an event took place – cannot be destroyed from an organiser session ([migration](../supabase/migrations/20261021001200_no_event_deletes.sql)) |
@@ -239,6 +240,13 @@ E.g. a leaked service role key, a lost unlocked organiser device, a lost printed
   members may **read** participants, nobody may update participant rows; events are
   readable by Workspace members only. Nobody may **delete** events or sign-ins through the
   API – only the retention job and admins in SQL. A trigger rejects sign-ups from other domains.
+- Confidentiality before access: on first login every organiser must accept the rules in
+  [`organiser-confidentiality.md`](organiser-confidentiality.md) (`/confidentiality`) –
+  use the data only for the lists, keep it confidential, delete exports, report incidents,
+  also after leaving. The database records email, text version and time
+  (`organiser_acknowledgements`) and `is_workspace_member()` – used by every organiser
+  policy – refuses organisers without an acceptance of the current version; the app and
+  the export routes check the same. A new text version means everyone accepts again.
 - Need-to-know: every `@esnmesa.org` account belongs to a member of the association who
   organises events, so all of them may read all lists; organisers regularly cover each other's events. Accounts are only given
   to such members and removed when they leave. Revisit if accounts are ever given to
@@ -292,9 +300,8 @@ E.g. a leaked service role key, a lost unlocked organiser device, a lost printed
   the device alone with a participant – stay next to them while they sign in. Where possible
   pin the browser to the form (Android: app pinning; iPhone/iPad: Guided Access) and lock the
   device when you put it down.
-- Organisers use participants' data only for the attendance lists and keep it confidential.
-  Written confidentiality commitments (Verpflichtung auf Vertraulichkeit) are not collected
-  yet – recommended as proof of this instruction (open point 5).
+- Organisers commit to these rules in the app before they see any list (confidentiality
+  commitment, see access control above).
 
 **Change management**
 - Database changes only as reviewed migration files, applied by CI on `main`; the
@@ -354,10 +361,10 @@ info@esnmesa.org, named in the privacy notice and Impressum.
    ask for a paper list – organisers need to know this and carry one (section 7).
 4. **Printed lists:** destroying them at the end of the retention period must be part of
    the office routine.
-5. **Organisational rules** (section 7): tell all organisers. Recommended: have current
-   organisers sign a short confidentiality commitment, and new ones when they get an
-   `@esnmesa.org` account (date it when signed; not legally required, but the usual
-   evidence for Art. 5(2), 24 and 32(4) GDPR).
+5. **Organisational rules** (section 7): tell all organisers. Confidentiality
+   commitments are collected in the app (from 21 October 2026, on each organiser's next
+   login); the board should approve the text in
+   [`organiser-confidentiality.md`](organiser-confidentiality.md).
 6. **Retention period** (set to five years, 21 October 2026): confirm it against the grant
    agreements (e.g. LEI), and check whether lists are ever used as accounting records
    (8 years). If so, lengthen it.

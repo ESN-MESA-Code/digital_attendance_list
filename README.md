@@ -88,6 +88,8 @@ The migrations create:
 - A nightly `pg_cron` job removing organisers' IP addresses from Supabase Auth's audit log
   and sessions after 30 days
 - No deleting of events or sign-ins through the API (only the retention job and admins in SQL)
+- `organiser_acknowledgements`: organisers accept the confidentiality rules before they see
+  any list (`is_workspace_member()` requires it); deleted after five years by a nightly job
 
 ### 3. Install dependencies
 

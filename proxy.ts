@@ -4,7 +4,8 @@ import { isWorkspaceUser } from "@/lib/auth";
 
 // Refreshes the Supabase session on every request and keeps organiser-only
 // routes (including the kiosk form on organiser devices) behind the Google
-// Workspace login. The public attendance form (/event/[token]) stays open.
+// Workspace login and the organisers' confidentiality rules (/confidentiality).
+// The public attendance form (/event/[token]) stays open.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -36,22 +37,48 @@ export async function proxy(request: NextRequest) {
   const isProtected =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/kiosk") ||
-    pathname.startsWith("/api/export");
+    pathname.startsWith("/api/export") ||
+    pathname.startsWith("/confidentiality");
 
-  if (isProtected && !isWorkspaceUser(user)) {
+  if (!isProtected) return response;
+
+  if (!isWorkspaceUser(user)) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    loginUrl.search = "";
-    loginUrl.searchParams.set("next", pathname + search);
-    return NextResponse.redirect(loginUrl);
+    return redirectTo(request, "/login", pathname + search);
+  }
+
+  // Organisers see no list before they accepted the confidentiality rules
+  // (the database refuses them too, see public.is_workspace_member()).
+  if (!pathname.startsWith("/confidentiality")) {
+    const { data: accepted } = await supabase.rpc("is_workspace_member");
+    if (accepted !== true) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Confidentiality rules not accepted" }, { status: 403 });
+      }
+      return redirectTo(request, "/confidentiality", pathname + search);
+    }
   }
 
   return response;
 }
 
+function redirectTo(request: NextRequest, pathname: string, next: string) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  url.searchParams.set("next", next);
+  return NextResponse.redirect(url);
+}
+
 export const config = {
-  matcher: ["/dashboard/:path*", "/kiosk/:path*", "/api/export/:path*", "/login", "/auth/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/kiosk/:path*",
+    "/api/export/:path*",
+    "/confidentiality/:path*",
+    "/login",
+    "/auth/:path*",
+  ],
 };

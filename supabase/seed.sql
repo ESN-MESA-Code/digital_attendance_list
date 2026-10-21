@@ -9,7 +9,8 @@
 -- stores, so the signup trigger and is_workspace_member() accept it.
 -- Used by tests/helpers/local.ts.
 -- organiser@esnmesa.org is used by most tests; signout@esnmesa.org only by
--- the sign-out test, because signing out ends all of a user's sessions.
+-- the sign-out test, because signing out ends all of a user's sessions;
+-- newcomer@esnmesa.org has not accepted the confidentiality rules yet.
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
@@ -23,7 +24,8 @@ select
   now(), now(), '', '', '', ''
 from (values
   ('a0000000-0000-4000-8000-000000000001'::uuid, 'organiser@esnmesa.org'),
-  ('a0000000-0000-4000-8000-000000000002'::uuid, 'signout@esnmesa.org')
+  ('a0000000-0000-4000-8000-000000000002'::uuid, 'signout@esnmesa.org'),
+  ('a0000000-0000-4000-8000-000000000003'::uuid, 'newcomer@esnmesa.org')
 ) as organisers (id, email);
 
 insert into auth.identities (
@@ -31,7 +33,12 @@ insert into auth.identities (
 )
 select gen_random_uuid(), id, id::text, jsonb_build_object('sub', id, 'email', email), 'email', now(), now(), now()
 from auth.users
-where email in ('organiser@esnmesa.org', 'signout@esnmesa.org');
+where email in ('organiser@esnmesa.org', 'signout@esnmesa.org', 'newcomer@esnmesa.org');
+
+-- The two regular test organisers accepted the current confidentiality rules.
+insert into public.organiser_acknowledgements (email, version)
+select email, public.confidentiality_version()
+from (values ('organiser@esnmesa.org'), ('signout@esnmesa.org')) as organisers (email);
 
 -- Hosted projects have the GraphQL API enabled; mirror that so the tests
 -- check it does not expose more than the REST API.

@@ -10,3 +10,10 @@ export const LEGAL = details;
  * Bump it in legal/details.json whenever that notice changes in substance.
  */
 export const NOTICE_VERSION = details.notice_version;
+
+/**
+ * Version (date) of the organisers' confidentiality rules
+ * (legal/organiser-confidentiality.md). Changing it needs a migration that
+ * changes public.confidentiality_version() – organisers are then asked again.
+ */
+export const CONFIDENTIALITY_VERSION = details.confidentiality_version;

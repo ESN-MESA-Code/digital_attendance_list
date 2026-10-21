@@ -54,7 +54,8 @@ Organisers sign in with their @esnmesa.org Google account ({{processors.login}})
 their name, email address, profile picture and account ID; the profile picture is loaded
 from Google, which sees the organiser's IP address. The app records which organiser created,
 recorded sign-ins for, signed off (with their signature) and filed each list; this is kept
-as long as the event. The login service records the IP address and browser of each login for
+as long as the event. It also records when an organiser accepted the confidentiality rules for
+organisers, kept until the end of the fifth calendar year after acceptance. The login service records the IP address and browser of each login for
 security; we delete these after 30 days. Legal basis: our legitimate interest in secure
 access and in knowing who is responsible for each list (Art. 6(1)(f) GDPR). The login cookies
 are strictly necessary and need no consent (§ 25(2) No. 2 TDDDG). Participants get no

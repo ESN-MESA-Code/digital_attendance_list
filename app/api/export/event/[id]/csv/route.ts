@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { getWorkspaceUser } from "@/lib/supabase/session";
+import { getOrganiser } from "@/lib/supabase/session";
 import { countryName } from "@/lib/countries";
 import { escapeCSV } from "@/lib/csv";
 import type { Event, Participant } from "@/types";
@@ -11,7 +11,7 @@ export async function GET(
 ) {
   const { id } = await params;
   // Defence in depth – the proxy already blocks unauthenticated requests.
-  if (!(await getWorkspaceUser())) {
+  if (!(await getOrganiser())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
