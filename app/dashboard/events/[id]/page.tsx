@@ -49,7 +49,8 @@ export default function EventDetailPage() {
   }
 
   // Fixes typos and the like. Only these fields change: the id and the QR
-  // code's token stay, so printed QR codes and sign-ins keep working.
+  // code's token stay, so printed QR codes and sign-ins keep working. The
+  // responsible member stays the creator.
   async function saveEdit(data: EventFormData) {
     if (!event) return;
     setSaving(true);
@@ -58,10 +59,7 @@ export default function EventDetailPage() {
       .from("events")
       .update({
         title: data.title,
-        description: data.description ?? "",
         event_date: fromDateTimeLocal(data.event_date),
-        responsible_member: data.responsible_member || null,
-        lei_responsible: data.lei_responsible || null,
       })
       .eq("id", event.id)
       .select()
@@ -141,10 +139,7 @@ export default function EventDetailPage() {
             <EventForm
               initialValues={{
                 title: event.title,
-                description: event.description ?? "",
                 event_date: toDateTimeLocal(event.event_date),
-                responsible_member: event.responsible_member ?? "",
-                lei_responsible: event.lei_responsible ?? "",
               }}
               onSubmit={saveEdit}
               onCancel={() => {
@@ -168,9 +163,6 @@ export default function EventDetailPage() {
                 Edit
               </button>
             </div>
-            {event.description && (
-              <p className="text-gray-600 text-sm mt-1 whitespace-pre-line">{event.description}</p>
-            )}
             <p className="text-xs text-gray-400 mt-2">
               {new Date(event.event_date).toLocaleDateString("en-GB", {
                 weekday: "long",
@@ -181,15 +173,8 @@ export default function EventDetailPage() {
                 minute: "2-digit",
               })}
             </p>
-            {(event.responsible_member || event.lei_responsible) && (
-              <p className="text-xs text-gray-500 mt-1">
-                {[
-                  event.responsible_member && `Responsible: ${event.responsible_member}`,
-                  event.lei_responsible && `LEI: ${event.lei_responsible}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
+            {event.responsible_member && (
+              <p className="text-xs text-gray-500 mt-1">Responsible: {event.responsible_member}</p>
             )}
 
             {/* Status: signed off by the organiser, then filed in the office */}

@@ -131,6 +131,36 @@ describe("signing off", () => {
   });
 });
 
+describe("responsible MESA member", () => {
+  it("is the creator's Google name, whatever the request says; no LEI name", async () => {
+    const { data } = await creator
+      .from("events")
+      .insert({
+        title: "Responsible test",
+        event_date: new Date().toISOString(),
+        public_token: crypto.randomUUID(),
+        responsible_member: "Someone Else",
+        lei_responsible: "Lea LEI",
+      })
+      .select("id, responsible_member, lei_responsible")
+      .single();
+    cleanup.push(data!.id);
+    expect(data).toMatchObject({ responsible_member: "Test Organiser", lei_responsible: null });
+  });
+
+  it("cannot be changed by editing the event", async () => {
+    const ev = await eventBy(creator);
+    const { data, error } = await creator
+      .from("events")
+      .update({ title: "Renamed", responsible_member: "Someone Else", lei_responsible: "Lea LEI" })
+      .eq("id", ev.id)
+      .select("title, responsible_member, lei_responsible")
+      .single();
+    expect(error).toBeNull();
+    expect(data).toEqual({ title: "Renamed", responsible_member: "Test Organiser", lei_responsible: null });
+  });
+});
+
 describe("after the sign-off", () => {
   it("no new sign-ins, neither by QR code nor kiosk", async () => {
     const ev = await eventBy(creator);

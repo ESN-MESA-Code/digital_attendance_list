@@ -324,9 +324,6 @@ export default function AttendanceForm({ event, kiosk }: Props) {
         <div className="p-6">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
-            {event.description && (
-              <p className="text-gray-500 text-sm mt-1">{event.description}</p>
-            )}
             <p className="text-xs text-gray-400 mt-1">
               {new Date(event.event_date).toLocaleDateString("en-GB", {
                 weekday: "long",

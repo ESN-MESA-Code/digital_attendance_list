@@ -307,7 +307,7 @@ function drawFirstPageHeader(
   }
   label("Unterschrift LEI-", 301.0, 704.64);
   label("Verantwortliche*r", 301.0, 695.99);
-  value(event.lei_responsible ?? "", 420.95, 700.3, TABLE_R - 420.95 - CELL_PAD);
+  // The LEI responsible person signs the printed list by hand: left blank.
 
   // ── Disclaimer ───────────────────────────────────────────────────────────
   let y = 680.44;
