@@ -2,10 +2,16 @@ name: Database migrations
 
 # Applies new files in supabase/migrations to the production database.
 # Supabase records applied migrations, so each file runs only once.
+#
+# Runs only after the Tests workflow passed on a push to main, on exactly the
+# commit that was tested; if the tests fail or are cancelled, nothing is
+# applied. (workflow_run has no path filter – a push without new migrations
+# makes `db push` a no-op.) A manual run skips that check.
 on:
-  push:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
     branches: [main]
-    paths: ["supabase/migrations/**"]
   workflow_dispatch:
 
 concurrency:
@@ -14,10 +20,17 @@ concurrency:
 
 jobs:
   migrate:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The commit the tests ran on, not whatever main is now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: supabase/setup-cli@v3
         with:

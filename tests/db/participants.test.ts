@@ -150,9 +150,9 @@ describe("validation", () => {
     ["an unknown exchange programme", { exchange_program: "Party" }],
     ["an unknown entry method", { entry_method: "import" }],
     ["no ESNcard answer", { esn_card: null }],
-    // Consent is the legal basis; every new sign-in records what was agreed to.
-    ["no consent version", { consent_version: undefined }],
-    ["a malformed consent version", { consent_version: "yes" }],
+    // Every new sign-in records which data processing notice was shown.
+    ["no notice version", { notice_version: undefined }],
+    ["a malformed notice version", { notice_version: "yes" }],
   ])("rejects %s", async (_, extra) => {
     const { error } = await anon.from("participants").insert(row(extra));
     expect(error).not.toBeNull();

@@ -48,7 +48,7 @@ types/                       # Shared TypeScript types
 supabase/
   migrations/                # Database schema + RLS policies (applied by CI)
 .github/workflows/
-  db-migrate.yml             # Applies new migrations on push to main
+  db-migrate.yml             # Applies new migrations once Tests passed on main
 ```
 
 ---
@@ -63,8 +63,9 @@ Go to [supabase.com](https://supabase.com) and create a new project.
 
 The schema lives in [`supabase/migrations/`](supabase/migrations). The
 [`db-migrate`](.github/workflows/db-migrate.yml) GitHub Action applies new migration files
-to the production database whenever they are pushed to `main` (it can also be started by
-hand under **Actions → Database migrations → Run workflow**).
+to the production database after a push to `main`, once the **Tests** workflow passed on
+that commit; if the tests fail, nothing is applied. It can also be started by hand under
+**Actions → Database migrations → Run workflow** (without waiting for tests).
 
 It needs one secret, `SUPABASE_DB_URL`, in the repository's `production` environment:
 the **Session pooler** connection string from **Connect** in the Supabase dashboard, with
@@ -81,7 +82,7 @@ The migrations create:
 - `get_public_event()`, which lets the public form look up one event by its QR code token
   (events themselves are readable by organisers only)
 - Realtime on `participants`
-- `participants.consent_version`, required for new sign-ins (the consent text agreed to)
+- `participants.notice_version`, required for new sign-ins (the data processing notice shown)
 - A nightly `pg_cron` job deleting events (and their sign-ins) at the end of the tenth
   calendar year after the event, as the privacy notice promises
 
@@ -186,12 +187,13 @@ migration that weakens the privacy rules fails there before it reaches `main`.
 ## Legal pages and data protection
 
 Everything legal lives in [`legal/`](legal): the Impressum (`/impressum`), the privacy
-notice (`/privacy` English, `/datenschutz` German), the disclaimer, data processing and
-consent texts on the attendance form, the shared facts (`details.json`) and the full
-data protection documentation for the DPO ([`legal/DATA_PROTECTION.md`](legal/DATA_PROTECTION.md)).
+notice (`/privacy` English, `/datenschutz` German), the disclaimer and
+data processing notice on the attendance form, the shared facts (`details.json`) and the full
+data protection documentation for the board ([`legal/DATA_PROTECTION.md`](legal/DATA_PROTECTION.md)).
 The app renders the Markdown files from there – see [`legal/README.md`](legal/README.md)
 for how to edit them. Every page has a footer linking the Impressum and the privacy
-notice; participants consent to the processing with a required checkbox on the form.
+notice. Sign-ins rest on legitimate interest (Art. 6(1)(f) GDPR); the form shows the data
+processing notice before the signature.
 
 ---
 
@@ -233,7 +235,7 @@ esn_card         boolean
 signature        text      -- 'data:image/png;base64,…', about 1 KB
 entry_method     text      -- 'self' | 'kiosk'
 recorded_by      text      -- organiser email for kiosk sign-ins
-consent_version  text      -- date of the consent text agreed to (null before 2026-10-21)
+notice_version   text      -- date of the data processing notice shown (null before 2026-10-21)
 created_at       timestamptz default now()
 ```
 

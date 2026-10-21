@@ -53,7 +53,7 @@ async function main() {
   for (const event of created.slice(0, -1)) {
     const rows = people.map(([first_name, last_name, nationality, university, exchange_program, esn_card]) => ({
       event_id: event.id, first_name, last_name, nationality, university, exchange_program, esn_card,
-      consent_version: "2026-10-21",
+      notice_version: "2026-10-21",
       signature: SIGNATURE, entry_method: "self", recorded_by: null,
     }));
     rows.push({ ...rows[0], first_name: "Kim", last_name: "Kiosk", entry_method: "kiosk", recorded_by: ORGANISER });

@@ -12,12 +12,7 @@ eigene Datenschutzerklärung.
 
 E-Mail: <{{association.email}}>
 
-## 2. Datenschutzbeauftragter
-
-{{dpo.name}}, <{{dpo.email}}> (Postanschrift wie oben, Zusatz „Datenschutzbeauftragter“). Sie
-können sich mit allen Fragen zu Ihren Daten an ihn wenden.
-
-## 3. Eintragen in die Anwesenheitsliste
+## 2. Eintragen in die Anwesenheitsliste
 
 ### Welche Daten
 
@@ -31,7 +26,7 @@ oder auf einem Gerät der Organisator*innen –, speichern wir:
 - Ihre handschriftliche Unterschrift (als kleines Bild)
 - den Zeitpunkt des Eintrags und ob Sie sich auf Ihrem eigenen Gerät oder auf dem Gerät einer
   Organisatorin bzw. eines Organisators eingetragen haben (dann auch, auf wessen Gerät)
-- welcher Fassung des Einwilligungstextes Sie zugestimmt haben
+- welche Fassung dieser Informationen Ihnen angezeigt wurde
 
 Mit Ihrer Unterschrift bestätigen Sie außerdem, dass Sie den Haftungsausschluss der
 Veranstaltung akzeptiert haben.
@@ -47,20 +42,28 @@ Veranstaltung akzeptiert haben.
   welchem Land kamen) für Berichte an Fördergeber und für die Planung unserer
   Veranstaltungen.
 
-### Rechtsgrundlage: Ihre Einwilligung
+### Rechtsgrundlage
 
-Rechtsgrundlage ist Ihre Einwilligung, die Sie mit dem Kästchen im Formular erteilen (Art. 6
-Abs. 1 lit. a DSGVO). Wir speichern die Fassung des Einwilligungstextes, dem Sie zugestimmt
-haben, und den Zeitpunkt, um Ihre Einwilligung nachweisen zu können (Art. 7 Abs. 1 DSGVO).
+- Führen der Anwesenheitsliste und Nachweis gegenüber Fördergebern und für unsere
+  Buchhaltung: unser berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO). Viele unserer Veranstaltungen
+  werden gefördert (siehe oben), und wir müssen nachweisen können,
+  dass sie stattgefunden haben und wer teilgenommen hat. Ohne unterschriebene
+  Anwesenheitsliste könnten wir diese Förderung verlieren. Wir erheben nur, was die Liste
+  braucht, nur Organisator*innen können sie sehen, und sie wird nach Ablauf der
+  Speicherdauer gelöscht; Ihre Interessen überwiegen daher nach unserer Abwägung nicht.
+- Ihre Annahme des Haftungsausschlusses der Veranstaltung, bestätigt durch Ihre
+  Unterschrift: Erfüllung der Vereinbarung über Ihre Teilnahme (Art. 6 Abs. 1 lit. b DSGVO).
+- Statistiken ohne Namen: dasselbe berechtigte Interesse (Art. 6 Abs. 1 lit. f DSGVO).
 
-### Die Einwilligung ist freiwillig – und widerruflich
+Wir speichern, welche Fassung dieser Informationen Ihnen angezeigt wurde, um nachweisen zu
+können, worüber Sie beim Eintragen informiert wurden (Art. 5 Abs. 2 DSGVO).
 
-Sie sind weder gesetzlich noch vertraglich zur Einwilligung verpflichtet, und es hängt nichts
-davon ab: Wenn Sie nicht einwilligen möchten, bitten Sie die Organisator*innen, Ihre Teilnahme
-stattdessen auf Papier zu notieren. Sie können Ihre Einwilligung jederzeit mit Wirkung für die
-Zukunft widerrufen, per E-Mail an <{{dpo.email}}> (oder <{{association.email}}>). Wir löschen
-Ihren Eintrag dann. Der Widerruf berührt weder die Rechtmäßigkeit der Verarbeitung bis dahin
-noch Statistiken, die Ihren Namen nicht mehr enthalten.
+### Müssen Sie sich eintragen?
+
+Sie sind gesetzlich nicht verpflichtet, diese Daten anzugeben. Sie werden für die
+Anwesenheitsliste benötigt: Wenn Sie sich nicht digital eintragen möchten, bitten Sie die
+Organisator*innen um eine Papierliste. Sie können der Verarbeitung jederzeit widersprechen
+(siehe Abschnitt 8, Widerspruchsrecht).
 
 ### Wer die Daten sieht
 
@@ -73,14 +76,14 @@ Daten nicht weiter; wir verkaufen sie nie und nutzen sie nicht für Werbung.
 
 ### Speicherdauer
 
-Sofern Sie Ihre Einwilligung nicht früher widerrufen, werden die Einträge am Ende des
+Die Einträge werden am Ende des
 {{retention.years}}. Kalenderjahres nach der Veranstaltung automatisch gelöscht (bei einer
 Veranstaltung im Jahr {{retention.example_event_year}} also Ende
 {{retention.example_deletion_year}}). So lange bewahren wir sie auf, weil Fördergeber die
 Listen für diesen Zeitraum als Nachweis verlangen können. Ausgedruckte Listen werden zum
 selben Zeitpunkt vernichtet.
 
-## 4. „Daten speichern“ auf Ihrem Gerät
+## 3. „Daten speichern“ auf Ihrem Gerät
 
 Nach dem Eintragen können Sie wählen, Ihren Namen, Ihre Staatsangehörigkeit, Universität, Ihr
 Austauschprogramm und Ihren ESNcard-Status in einem Cookie auf Ihrem Gerät zu speichern, damit
@@ -94,7 +97,7 @@ können sie jederzeit mit Wirkung für die Zukunft widerrufen: über „Not you?
 details“ bzw. „Remove them“ im Formular oder indem Sie die Cookies dieser Seite in Ihrem
 Browser löschen.
 
-## 5. Anmeldung der Organisator*innen
+## 4. Anmeldung der Organisator*innen
 
 Organisator*innen melden sich mit ihrem Google-Workspace-Konto von MESA (@esnmesa.org) an,
 bereitgestellt von {{processors.login}}. Wir erhalten von Google Name, E-Mail-Adresse,
@@ -108,10 +111,10 @@ die zugehörigen Veranstaltungen.
 
 Bei der Anmeldung werden Cookies gesetzt, die die Sitzung speichern. Sie sind für den Bereich
 der Organisator*innen unbedingt erforderlich und brauchen keine Einwilligung (§ 25 Abs. 2
-Nr. 2 TDDDG). Teilnehmende erhalten außer dem freiwilligen Cookie aus Abschnitt 4 keine
+Nr. 2 TDDDG). Teilnehmende erhalten außer dem freiwilligen Cookie aus Abschnitt 3 keine
 Cookies.
 
-## 6. Hosting und Server-Logfiles
+## 5. Hosting und Server-Logfiles
 
 Die App wird von {{processors.hosting}} auf Servern in der EU betrieben. Die Daten liegen in
 einer Datenbank von {{processors.database}}, mit Standort Frankfurt am Main. Beim Aufruf der
@@ -121,7 +124,7 @@ auszuliefern und abzusichern, und speichern sie nur kurz in ihren Logfiles. Rech
 ist unser berechtigtes Interesse an einem zuverlässigen und sicheren Betrieb (Art. 6 Abs. 1
 lit. f DSGVO).
 
-## 7. Dienstleister und Übermittlung in Drittländer
+## 6. Dienstleister und Übermittlung in Drittländer
 
 Vercel, Supabase und Google verarbeiten Daten in unserem Auftrag auf Grundlage von Verträgen
 zur Auftragsverarbeitung (Art. 28 DSGVO). Obwohl die Daten in der EU gespeichert sind, können
@@ -132,13 +135,13 @@ auf das EU-US Data Privacy Framework, soweit das Unternehmen danach zertifiziert
 Datenschutzhinweise der Anbieter: [Vercel](https://vercel.com/legal/privacy-policy),
 [Supabase](https://supabase.com/privacy), [Google](https://policies.google.com/privacy).
 
-## 8. Kein Tracking
+## 7. Kein Tracking
 
 Die App verwendet keine Analyse-, Tracking- oder Werbewerkzeuge und lädt keine Schriften oder
 Skripte von fremden Seiten. Es findet keine automatisierte Entscheidungsfindung statt (Art. 22
 DSGVO).
 
-## 9. Ihre Rechte
+## 8. Ihre Rechte
 
 Sie haben das Recht auf
 
@@ -148,24 +151,28 @@ Sie haben das Recht auf
 - Einschränkung der Verarbeitung (Art. 18 DSGVO),
 - Erhalt der von Ihnen bereitgestellten Daten in einem maschinenlesbaren Format (Art. 20
   DSGVO),
-- Widerruf einer Einwilligung mit Wirkung für die Zukunft (Art. 7 Abs. 3 DSGVO).
+- Widerruf einer Einwilligung mit Wirkung für die Zukunft (Art. 7 Abs. 3 DSGVO) – das
+  betrifft das freiwillige Cookie zum Speichern Ihrer Daten (Abschnitt 3).
 
 **Widerspruchsrecht (Art. 21 DSGVO): Soweit wir Ihre Daten auf Grundlage unseres berechtigten
-Interesses verarbeiten (Anmeldung der Organisator*innen, Server-Logfiles), können Sie aus
+Interesses verarbeiten (Anwesenheitslisten, Statistiken, Anmeldung der Organisator*innen,
+Server-Logfiles), können Sie aus
 Gründen, die sich aus Ihrer besonderen Situation ergeben, jederzeit widersprechen. Wir
 verarbeiten sie dann nicht mehr, es sei denn, wir können zwingende schutzwürdige Gründe
 nachweisen oder brauchen sie zur Geltendmachung, Ausübung oder Verteidigung von
-Rechtsansprüchen.**
+Rechtsansprüchen. Bei Anwesenheitslisten kann das der Fall sein, solange ein Fördergeber die
+Liste einer geförderten Veranstaltung noch prüfen darf; wir teilen Ihnen das dann mit und
+löschen Ihren Eintrag, sobald dieser Zeitraum endet.**
 
-Wenden Sie sich dafür an den Datenschutzbeauftragten unter <{{dpo.email}}> oder an
-<{{association.email}}>.
+Wenden Sie sich dafür an <{{association.email}}> oder an die Postanschrift in Abschnitt 1.
 
 Außerdem können Sie sich bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO).
 Für uns zuständig ist das {{authority.name}}, {{authority.address}}, <{{authority.website}}>.
 
-## 10. Sicherheit
+## 9. Sicherheit
 
-Alle Verbindungen sind verschlüsselt (HTTPS). Die Einträge sind nur mit einer
+Alle Verbindungen sind verschlüsselt (HTTPS), und die Datenbank und ihre Sicherungen
+werden verschlüsselt gespeichert. Die Einträge sind nur mit einer
 @esnmesa.org-Anmeldung lesbar, was die Datenbank selbst durchsetzt, und Unterschriften sind
 nie öffentlich abrufbar.
 

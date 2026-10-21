@@ -34,7 +34,7 @@ function participant(i: number, signature: string): Participant {
     signature,
     entry_method: "self",
     recorded_by: null,
-    consent_version: "2026-10-21",
+    notice_version: "2026-10-21",
     created_at: "2026-10-21T18:05:00Z",
   };
 }

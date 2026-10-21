@@ -4,14 +4,10 @@
     "short_name": "MESA e.V.",
     "byname": "ESN MESA München",
     "address": "c/o Referat Internationale Angelegenheiten, Geschwister-Scholl-Platz 1, 80539 München",
-    "email": "info@lmu-mesa.org",
+    "email": "info@esnmesa.org",
     "website": "https://mesa.esn-germany.de",
     "register_court": "Amtsgericht München",
     "register_number": "VR 200385"
-  },
-  "dpo": {
-    "name": "Cevin Neubauer",
-    "email": "it@esnmesa.org"
   },
   "authority": {
     "name": "Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)",
@@ -28,7 +24,7 @@
     "example_event_year": 2026,
     "example_deletion_year": 2036
   },
-  "consent_version": "2026-10-21",
+  "notice_version": "2026-10-21",
   "as_of": {
     "en": "October 2026",
     "de": "Oktober 2026"

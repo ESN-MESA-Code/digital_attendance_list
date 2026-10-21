@@ -32,5 +32,4 @@ Website: <{{association.website}}>
 
 ## Datenschutz / Data protection
 
-Datenschutzbeauftragter / Data protection officer: {{dpo.name}}, <{{dpo.email}}> \
 [Datenschutzerklärung](/datenschutz) / [Privacy notice](/privacy)
