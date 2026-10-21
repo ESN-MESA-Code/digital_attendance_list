@@ -48,7 +48,7 @@ types/                       # Shared TypeScript types
 supabase/
   migrations/                # Database schema + RLS policies (applied by CI)
 .github/workflows/
-  db-migrate.yml             # Applies new migrations on push to main
+  db-migrate.yml             # Applies new migrations once Tests passed on main
 ```
 
 ---
@@ -63,8 +63,9 @@ Go to [supabase.com](https://supabase.com) and create a new project.
 
 The schema lives in [`supabase/migrations/`](supabase/migrations). The
 [`db-migrate`](.github/workflows/db-migrate.yml) GitHub Action applies new migration files
-to the production database whenever they are pushed to `main` (it can also be started by
-hand under **Actions → Database migrations → Run workflow**).
+to the production database after a push to `main`, once the **Tests** workflow passed on
+that commit; if the tests fail, nothing is applied. It can also be started by hand under
+**Actions → Database migrations → Run workflow** (without waiting for tests).
 
 It needs one secret, `SUPABASE_DB_URL`, in the repository's `production` environment:
 the **Session pooler** connection string from **Connect** in the Supabase dashboard, with

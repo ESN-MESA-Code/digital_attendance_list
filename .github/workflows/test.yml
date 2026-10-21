@@ -2,8 +2,9 @@ name: Tests
 
 # Unit tests on every push and pull request; database and end-to-end tests
 # against a local Supabase stack built from supabase/migrations, so a
-# migration that breaks the privacy rules fails here before it reaches main
-# (where db-migrate.yml applies it to production).
+# migration that breaks the privacy rules fails here before it reaches main.
+# On main, db-migrate.yml applies migrations to production only after this
+# workflow succeeded – keep its name "Tests" in step with db-migrate.yml.
 on:
   pull_request:
   push:
