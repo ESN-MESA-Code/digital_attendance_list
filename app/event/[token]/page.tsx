@@ -4,21 +4,20 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import AttendanceForm from "@/components/AttendanceForm";
-import type { Event } from "@/types";
+import type { PublicEvent } from "@/types";
 
 export default function AttendancePage() {
   const { token } = useParams<{ token: string }>();
-  const [event, setEvent] = useState<Event | null>(null);
+  const [event, setEvent] = useState<PublicEvent | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchEvent() {
-      const { data, error } = await supabase
-        .from("events")
-        .select("*")
-        .eq("public_token", token)
-        .single();
-      if (!error && data) setEvent(data as Event);
+      // Events are private; this returns only the title, description and date
+      // of the one event whose QR code token matches.
+      const { data, error } = await supabase.rpc("get_public_event", { token });
+      const found = (data as PublicEvent[] | null)?.[0];
+      if (!error && found) setEvent(found);
       setLoading(false);
     }
     fetchEvent();

@@ -56,13 +56,13 @@ export default function AttendanceTable({ participants }: Props) {
                 {p.esn_card === null ? "—" : p.esn_card ? "Yes" : "No"}
               </td>
               <td className="px-3 py-2">
-                {p.signature_url ? (
+                {p.signature ? (
                   <Image
-                    src={p.signature_url}
+                    src={p.signature}
                     alt={`${p.first_name} ${p.last_name} signature`}
                     width={80}
                     height={40}
-                    className="border border-gray-200 rounded bg-white"
+                    className="h-10 w-20 object-contain border border-gray-200 rounded bg-white"
                     unoptimized
                   />
                 ) : (

@@ -9,6 +9,9 @@ export interface Event {
   created_at: string;
 }
 
+/** What the public attendance form may know about an event (get_public_event). */
+export type PublicEvent = Pick<Event, "id" | "title" | "description" | "event_date">;
+
 export interface Participant {
   id: string;
   event_id: string;
@@ -21,7 +24,8 @@ export interface Participant {
   /** "Erasmus+" | "LMUexchange" | "Full-time degree" | "Other" */
   exchange_program: string;
   esn_card: boolean;
-  signature_url: string;
+  /** Signature as a small PNG data URL ("data:image/png;base64,…") */
+  signature: string;
   /** "self" (own phone) | "kiosk" (signed in on an organiser's device) */
   entry_method: "self" | "kiosk";
   /** Email of the organiser whose device recorded a kiosk sign-in */

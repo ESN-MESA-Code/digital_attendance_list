@@ -4,6 +4,7 @@ import { PDFDocument, rgb, PDFPage, PDFFont, PDFImage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { ESN_LOGO_PNG_BASE64 } from "./esn-logo";
 import { countryName, DEFAULT_EXPORT_LANG, type Lang } from "@/lib/countries";
+import { SIGNATURE_PREFIX } from "@/lib/signature";
 import type { Event, Participant } from "@/types";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -307,14 +308,10 @@ function drawFirstPageHeader(page: PDFPage, event: Event, fonts: Fonts, logo: PD
   return P1_TABLE_TOP;
 }
 
-async function fetchImageBytes(url: string): Promise<Uint8Array | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    return new Uint8Array(await res.arrayBuffer());
-  } catch {
-    return null;
-  }
+/** PNG bytes of a signature stored as a data URL. */
+function signatureBytes(dataUrl: string): Uint8Array | null {
+  if (!dataUrl.startsWith(SIGNATURE_PREFIX)) return null;
+  return Buffer.from(dataUrl.slice(SIGNATURE_PREFIX.length), "base64");
 }
 
 export async function generateAttendancePdf(
@@ -403,8 +400,8 @@ export async function generateAttendancePdf(
       page.drawText(o.label, { x: o.labelX, y, size: FS_OPT, font: fonts.reg, color: BLACK });
     }
 
-    if (p?.signature_url) {
-      const bytes = await fetchImageBytes(p.signature_url);
+    if (p?.signature) {
+      const bytes = signatureBytes(p.signature);
       if (bytes) {
         try {
           const img = await pdfDoc.embedPng(bytes);

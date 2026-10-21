@@ -15,7 +15,7 @@ import {
   saveDetails,
   type SavedDetails,
 } from "@/lib/savedDetails";
-import type { Event } from "@/types";
+import type { PublicEvent } from "@/types";
 
 const UNIVERSITIES = ["LMU", "TUM", "Other"] as const;
 const EXCHANGE_PROGRAMS = ["Erasmus+", "LMUexchange", "Full-time degree", "Other"] as const;
@@ -50,7 +50,7 @@ const inputClass =
 const KIOSK_RESET_SECONDS = 5;
 
 interface Props {
-  event: Event;
+  event: PublicEvent;
   /**
    * Set when the form runs on an organiser's device for participants without
    * a phone or internet. Saved details are neither offered nor pre-filled
@@ -137,32 +137,8 @@ export default function AttendanceForm({ event, kiosk }: Props) {
     setError(null);
 
     try {
-      // Convert signature to PNG blob
-      const dataUrl = sigPadRef.current!.toDataURL();
-      const base64 = dataUrl.split(",")[1];
-      const byteString = atob(base64);
-      const byteArray = new Uint8Array(byteString.length);
-      for (let i = 0; i < byteString.length; i++) {
-        byteArray[i] = byteString.charCodeAt(i);
-      }
-      const blob = new Blob([byteArray], { type: "image/png" });
-
-      // Create participant record first to get the id
-      const participantId = crypto.randomUUID();
-      const filePath = `${event.id}/${participantId}.png`;
-
-      // Upload signature to storage
-      const { error: uploadError } = await supabase.storage
-        .from("signatures")
-        .upload(filePath, blob, { contentType: "image/png", upsert: false });
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from("signatures")
-        .getPublicUrl(filePath);
-
-      const signatureUrl = publicUrlData.publicUrl;
+      const signature = await sigPadRef.current!.toPng();
+      if (!signature) throw new Error("Please provide your signature.");
 
       const details: SavedDetails = {
         first_name: data.first_name,
@@ -173,9 +149,8 @@ export default function AttendanceForm({ event, kiosk }: Props) {
         esn_card: data.esn_card,
       };
 
-      // Insert participant
+      // No .select(): participants cannot (and must not) read rows back.
       const { error: insertError } = await supabase.from("participants").insert({
-        id: participantId,
         event_id: event.id,
         first_name: details.first_name,
         last_name: details.last_name,
@@ -183,7 +158,7 @@ export default function AttendanceForm({ event, kiosk }: Props) {
         university: details.university,
         exchange_program: details.exchange_program,
         esn_card: details.esn_card === "yes",
-        signature_url: signatureUrl,
+        signature,
         // Self sign-ins rely on the column defaults ('self', null).
         ...(kiosk && { entry_method: "kiosk", recorded_by: kiosk.recordedBy }),
       });

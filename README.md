@@ -22,7 +22,7 @@ A production-ready web application for managing event attendance using QR codes,
 | Layer       | Technology                                      |
 |-------------|--------------------------------------------------|
 | Frontend    | Next.js 16 (App Router), TypeScript, TailwindCSS |
-| Backend     | Supabase (PostgreSQL + Storage + Realtime)        |
+| Backend     | Supabase (PostgreSQL + Realtime)                  |
 | Forms       | react-hook-form + zod                             |
 | Signatures  | react-signature-canvas                            |
 | QR codes    | qrcode                                            |
@@ -78,7 +78,8 @@ The migrations create:
 - `events` and `participants` tables
 - Row Level Security policies (organiser access limited to esnmesa.org accounts)
 - A trigger rejecting sign-ups from any other account
-- A public `signatures` storage bucket
+- `get_public_event()`, which lets the public form look up one event by its QR code token
+  (events themselves are readable by organisers only)
 - Realtime on `participants`
 
 ### 3. Install dependencies
@@ -139,8 +140,9 @@ Deploy to [Vercel](https://vercel.com) or any Node.js-compatible host. Make sure
 1. **Organiser** signs in with their esnmesa.org Google account, opens `/dashboard/events` and creates an event.
 2. The event page (`/dashboard/events/[id]`) shows a downloadable **QR code**.
 3. **Participants** scan the QR code, which opens `/event/[token]`.
-4. They fill in their name (+ optional email / organisation) and draw a **signature**.
-5. The signature is uploaded to Supabase Storage; the participant record is saved.
+4. They fill in their name, nationality, university, exchange programme and ESNcard status and draw a **signature**.
+5. The signature is shrunk to a ~1 KB 2-bit greyscale PNG and saved in the participant row.
+   Nothing personal is readable without an esnmesa.org login.
 6. The organiser's dashboard updates in **real time** as participants sign in.
 7. The organiser can **Export CSV** or **Export PDF** (with embedded signatures).
 
@@ -149,23 +151,29 @@ Deploy to [Vercel](https://vercel.com) or any Node.js-compatible host. Make sure
 ## Database Schema
 
 ```sql
--- events
-id          uuid primary key
-title       text
-description text
-event_date  timestamptz
-public_token text unique
-created_at  timestamptz default now()
+-- events (organisers only; the form uses get_public_event(token))
+id                 uuid primary key
+title              text
+description        text
+event_date         timestamptz
+responsible_member text
+lei_responsible    text
+public_token       text unique
+created_at         timestamptz default now()
 
--- participants
-id             uuid primary key
-event_id       uuid references events(id)
-name           text
-email          text
-organization   text
-signature_url  text
-created_at     timestamptz default now()
-unique(event_id, email)
+-- participants (anyone may insert, organisers only may read)
+id               uuid primary key
+event_id         uuid references events(id)
+first_name       text
+last_name        text
+nationality      text      -- ISO country code, e.g. 'DE'
+university       text      -- 'LMU' | 'TUM' | 'Other'
+exchange_program text      -- 'Erasmus+' | 'LMUexchange' | 'Full-time degree' | 'Other'
+esn_card         boolean
+signature        text      -- 'data:image/png;base64,…', about 1 KB
+entry_method     text      -- 'self' | 'kiosk'
+recorded_by      text      -- organiser email for kiosk sign-ins
+created_at       timestamptz default now()
 ```
 
 ---

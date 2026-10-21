@@ -2,9 +2,11 @@
 
 import { useRef, useImperativeHandle, forwardRef, useEffect } from "react";
 import SignatureCanvas from "react-signature-canvas";
+import { signatureToPng } from "@/lib/signature";
 
 export interface SignaturePadHandle {
-  toDataURL: () => string;
+  /** Compact PNG data URL (a few KB), "" when nothing was drawn */
+  toPng: () => Promise<string>;
   isEmpty: () => boolean;
   clear: () => void;
 }
@@ -13,7 +15,13 @@ const SignaturePad = forwardRef<SignaturePadHandle>((_, ref) => {
   const sigPadRef = useRef<SignatureCanvas>(null);
 
   useImperativeHandle(ref, () => ({
-    toDataURL: () => sigPadRef.current?.toDataURL("image/png") ?? "",
+    toPng: async () => {
+      const pad = sigPadRef.current;
+      if (!pad || pad.isEmpty()) return "";
+      const canvas = pad.getCanvas();
+      // The library scales the canvas by the device pixel ratio.
+      return signatureToPng(canvas, canvas.width / Math.max(canvas.offsetWidth, 1));
+    },
     isEmpty: () => sigPadRef.current?.isEmpty() ?? true,
     clear: () => sigPadRef.current?.clear(),
   }));

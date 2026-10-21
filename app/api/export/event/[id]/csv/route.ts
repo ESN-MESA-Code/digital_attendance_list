@@ -38,7 +38,8 @@ export async function GET(
 
   const { data: participants, error: participantsError } = await supabaseAdmin
     .from("participants")
-    .select("*")
+    // Signatures stay out of the CSV – it is meant for spreadsheets.
+    .select("first_name, last_name, nationality, university, exchange_program, esn_card, created_at, entry_method, recorded_by")
     .eq("event_id", id)
     .order("created_at", { ascending: true });
 
@@ -47,8 +48,8 @@ export async function GET(
   }
 
   const rows: string[] = [
-    "Surname,First Name,Nationality,University,Exchange Programme,ESNcard,Signature URL,Registered At,Entry Method,Recorded By",
-    ...((participants ?? []) as Participant[]).map((p) =>
+    "Surname,First Name,Nationality,University,Exchange Programme,ESNcard,Registered At,Entry Method,Recorded By",
+    ...((participants ?? []) as Omit<Participant, "id" | "event_id" | "signature">[]).map((p) =>
       [
         escapeCSV(p.last_name),
         escapeCSV(p.first_name),
@@ -56,7 +57,6 @@ export async function GET(
         escapeCSV(p.university),
         escapeCSV(p.exchange_program),
         p.esn_card === null ? "" : p.esn_card ? "Yes" : "No",
-        escapeCSV(p.signature_url),
         escapeCSV(p.created_at),
         escapeCSV(p.entry_method),
         escapeCSV(p.recorded_by),

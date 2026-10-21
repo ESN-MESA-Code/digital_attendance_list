@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { Participant } from "@/types";
 
+const COLUMNS =
+  "id, event_id, first_name, last_name, nationality, university, exchange_program, esn_card, signature, entry_method, recorded_by, created_at";
+
 export function useParticipants(eventId: string) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12,7 +15,7 @@ export function useParticipants(eventId: string) {
     async function fetchParticipants() {
       const { data, error } = await supabase
         .from("participants")
-        .select("*")
+        .select(COLUMNS)
         .eq("event_id", eventId)
         .order("created_at", { ascending: true });
 
@@ -35,7 +38,10 @@ export function useParticipants(eventId: string) {
           filter: `event_id=eq.${eventId}`,
         },
         (payload) => {
-          setParticipants((prev) => [...prev, payload.new as Participant]);
+          const added = payload.new as Participant;
+          setParticipants((prev) =>
+            prev.some((p) => p.id === added.id) ? prev : [...prev, added]
+          );
         }
       )
       .subscribe();

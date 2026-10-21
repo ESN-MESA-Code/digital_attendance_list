@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import EventForm from "@/components/EventForm";
 import EventList from "@/components/EventList";
 import { supabase } from "@/lib/supabase/client";
-import { v4 as uuidv4 } from "uuid";
 import type { Event } from "@/types";
 
 export default function EventsDashboard() {
@@ -42,7 +41,8 @@ export default function EventsDashboard() {
   }) {
     setSubmitting(true);
     setError(null);
-    const publicToken = uuidv4().replace(/-/g, "").slice(0, 16);
+    // The QR code token is the only key to the public form: 122 random bits.
+    const publicToken = crypto.randomUUID().replace(/-/g, "");
     const { data: inserted, error: err } = await supabase
       .from("events")
       .insert({
