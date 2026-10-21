@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   ANON_KEY,
   ORGANISER,
+  admin,
   SUPABASE_URL,
   anonClient,
   clientAs,
@@ -172,13 +173,22 @@ describe("changing events", () => {
     expect(data).toEqual({ filed_at: null });
   });
 
-  it("organisers can create, edit and delete events", async () => {
+  it("organisers can create and edit events, but not delete them", async () => {
     const created = await organiser.from("events").insert(newEvent).select("id").single();
     expect(created.error).toBeNull();
     const id = created.data!.id;
-    const upd = await organiser.from("events").update({ title: "Renamed" }).eq("id", id).select("title").single();
-    expect(upd.data?.title).toBe("Renamed");
-    const del = await organiser.from("events").delete().eq("id", id).select("id");
-    expect(del.data).toHaveLength(1);
+    try {
+      const upd = await organiser.from("events").update({ title: "Renamed" }).eq("id", id).select("title").single();
+      expect(upd.data?.title).toBe("Renamed");
+      // A list is proof that an event took place – only admins in SQL and the
+      // retention job delete events.
+      const del = await organiser.from("events").delete().eq("id", id).select("id");
+      expect(del.error?.code).toBe("42501");
+      const { data } = await admin.from("events").select("id").eq("id", id);
+      expect(data).toEqual([{ id }]);
+    } finally {
+      await deleteEvent(id);
+    }
   });
+
 });

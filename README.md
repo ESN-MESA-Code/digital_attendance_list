@@ -83,8 +83,11 @@ The migrations create:
   (events themselves are readable by organisers only)
 - Realtime on `participants`
 - `participants.notice_version`, required for new sign-ins (the data processing notice shown)
-- A nightly `pg_cron` job deleting events (and their sign-ins) at the end of the tenth
+- A nightly `pg_cron` job deleting events (and their sign-ins) at the end of the fifth
   calendar year after the event, as the privacy notice promises
+- A nightly `pg_cron` job removing organisers' IP addresses from Supabase Auth's audit log
+  and sessions after 30 days
+- No deleting of events or sign-ins through the API (only the retention job and admins in SQL)
 
 ### 3. Install dependencies
 
@@ -162,7 +165,7 @@ Deploy to [Vercel](https://vercel.com) or any Node.js-compatible host. Make sure
 
 | Command            | What it checks                                                                 | Needs              |
 | ------------------ | ------------------------------------------------------------------------------ | ------------------ |
-| `npm test`         | Signature encoder, PDF export, CSV escaping, auth helpers, countries, cookies | nothing            |
+| `npm test`         | Signature encoder, PDF export, CSV escaping, auth helpers, countries, saved details | nothing            |
 | `npm run test:db`  | Row Level Security, `get_public_event`, storage bucket, signup trigger, realtime | local Supabase     |
 | `npm run test:e2e` | Public form (desktop + phone), kiosk, dashboard, exports, access control      | local Supabase     |
 

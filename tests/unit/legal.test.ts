@@ -54,7 +54,7 @@ describe("legal texts", () => {
   it("the form names the contact email and the retention period", () => {
     const { dataProcessing } = attendanceFormTexts();
     expect(dataProcessing).toContain(`mailto:${LEGAL.association.email}`);
-    expect(dataProcessing).toContain(`${LEGAL.retention.years}th year`);
+    expect(dataProcessing).toContain(`end of the ${LEGAL.retention.years}th year after the event`);
     // Legitimate interest with a right to object – not consent.
     expect(dataProcessing).toContain("Art. 6(1)(f) GDPR");
     expect(dataProcessing).toMatch(/object to the processing/);

@@ -1,20 +1,34 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetSavedDetails, loadSavedDetails, saveDetails, type SavedDetails } from "@/lib/savedDetails";
 
-// Minimal browser cookie jar: enough of document.cookie for these helpers.
+const KEY = "mesa_attendance_details";
+
+// Minimal browser cookie jar: enough of document.cookie for the old-cookie migration.
 class CookieJar {
   jar = new Map<string, string>();
-  writes: string[] = [];
   get cookie() {
     return [...this.jar].map(([k, v]) => `${k}=${v}`).join("; ");
   }
   set cookie(line: string) {
-    this.writes.push(line);
     const [pair, ...attrs] = line.split("; ");
     const i = pair.indexOf("=");
     const name = pair.slice(0, i);
     if (attrs.some((a) => a === "Max-Age=0")) this.jar.delete(name);
     else this.jar.set(name, pair.slice(i + 1));
+  }
+}
+
+// Minimal localStorage.
+class MemoryStorage {
+  items = new Map<string, string>();
+  getItem(k: string) {
+    return this.items.get(k) ?? null;
+  }
+  setItem(k: string, v: string) {
+    this.items.set(k, v);
+  }
+  removeItem(k: string) {
+    this.items.delete(k);
   }
 }
 
@@ -28,27 +42,36 @@ const details: SavedDetails = {
 };
 
 let jar: CookieJar;
+let store: MemoryStorage;
 beforeEach(() => {
   jar = new CookieJar();
-  Object.assign(globalThis, { document: jar, location: { protocol: "https:" } });
+  store = new MemoryStorage();
+  Object.assign(globalThis, { document: jar, localStorage: store });
 });
 afterEach(() => {
+  vi.useRealTimers();
   delete (globalThis as Record<string, unknown>).document;
-  delete (globalThis as Record<string, unknown>).location;
+  delete (globalThis as Record<string, unknown>).localStorage;
 });
 
-describe("saved details cookie", () => {
+describe("saved details", () => {
   it("round-trips the details, including awkward characters", () => {
     saveDetails(details);
     expect(loadSavedDetails()).toEqual(details);
+  });
+
+  it("are stored in localStorage, never in a cookie", () => {
+    saveDetails(details);
+    expect(store.items.has(KEY)).toBe(true);
+    expect(jar.cookie).toBe("");
   });
 
   it("returns null when nothing is saved", () => {
     expect(loadSavedDetails()).toBeNull();
   });
 
-  it("returns null for a corrupt cookie", () => {
-    jar.jar.set("mesa_attendance_details", "%7Bnot-json");
+  it("returns null for corrupt data", () => {
+    store.setItem(KEY, "{not-json");
     expect(loadSavedDetails()).toBeNull();
   });
 
@@ -58,11 +81,27 @@ describe("saved details cookie", () => {
     expect(loadSavedDetails()).toBeNull();
   });
 
-  it("is Secure on https, SameSite=Lax and expires after a year", () => {
+  it("expires after a year", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
     saveDetails(details);
-    const line = jar.writes.at(-1)!;
-    expect(line).toContain("; Secure");
-    expect(line).toContain("SameSite=Lax");
-    expect(line).toContain(`Max-Age=${60 * 60 * 24 * 365}`);
+    vi.setSystemTime(new Date("2026-12-31T00:00:00Z"));
+    expect(loadSavedDetails()).toEqual(details);
+    vi.setSystemTime(new Date("2027-01-02T00:00:00Z"));
+    expect(loadSavedDetails()).toBeNull();
+    expect(store.items.has(KEY)).toBe(false);
+  });
+
+  it("moves details from the old cookie to localStorage and deletes the cookie", () => {
+    jar.jar.set(KEY, encodeURIComponent(JSON.stringify(details)));
+    expect(loadSavedDetails()).toEqual(details);
+    expect(jar.cookie).toBe("");
+    expect(store.items.has(KEY)).toBe(true);
+  });
+
+  it("works without localStorage (blocked site data)", () => {
+    delete (globalThis as Record<string, unknown>).localStorage;
+    expect(() => saveDetails(details)).not.toThrow();
+    expect(loadSavedDetails()).toBeNull();
   });
 });

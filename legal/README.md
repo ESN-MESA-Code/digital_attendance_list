@@ -33,6 +33,6 @@ deploy) – no code changes needed.
   adding fields.
 - **Retention period** (`retention` in `details.json`): the automatic deletion runs in
   the database, so it also needs a new migration in `supabase/migrations/` that changes
-  `public.delete_expired_events()` (see `20261021000800_retention.sql`).
+  `public.delete_expired_events()` (see `20261021001100_retention_five_years.sql`).
 - **The printed PDF** has its own bilingual disclaimer, laid out line by line in
   `lib/pdf/generate.ts`.
