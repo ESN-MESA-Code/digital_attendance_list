@@ -184,8 +184,8 @@ test("exports several events as one PDF and marks them as filed", async ({ page,
 
     // Offered to mark the printed lists as filed
     await page.getByRole("button", { name: "✓ Mark as filed" }).click();
-    await expect(page.getByRole("button", { name: `Filed: ${event.title}` })).toBeVisible();
-    await expect(page.getByRole("button", { name: `Filed: ${second.title}` })).toBeVisible();
+    await expect(page.getByRole("button", { name: `Filed: ${event.title}`, exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: `Filed: ${second.title}`, exact: true })).toBeVisible();
     const { data } = await admin.from("events").select("filed_at, filed_by").in("id", [event.id, second.id]);
     expect(data).toHaveLength(2);
     for (const row of data!) {
@@ -217,13 +217,13 @@ test("events are sorted by date, newest first", async ({ page }) => {
 
 test("tracks which printed lists are filed in the office", async ({ page, event }) => {
   await page.goto("/dashboard/events");
-  const chip = page.getByRole("button", { name: `Not filed: ${event.title}` });
+  const chip = page.getByRole("button", { name: `Not filed: ${event.title}`, exact: true });
   // Only after the sign-off
   await expect(chip).toBeDisabled();
   await signOffEvent(event.id, await sampleSignature());
   await page.reload();
   await chip.click();
-  await expect(page.getByRole("button", { name: `Filed: ${event.title}` })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Filed: ${event.title}`, exact: true })).toBeVisible();
 
   // "Only not yet filed" hides it
   await page.getByLabel("Only lists not yet filed in the office").check();
@@ -338,7 +338,7 @@ test("the creator finishes the event with a signature, which closes sign-ins", a
   try {
     await page.goto(`/dashboard/events/${ev.id}`);
     await expect(page.getByText("Open for sign-ins")).toBeVisible();
-    await expect(page.getByText("Can be filed after the sign-off.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "✓ Mark as filed" })).toBeDisabled();
     // No PDF before the sign-off
     await expect(page.getByRole("link", { name: "Download as PDF" })).toHaveAttribute("aria-disabled", "true");
 
