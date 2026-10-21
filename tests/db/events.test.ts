@@ -143,6 +143,32 @@ describe("changing events", () => {
     }
   });
 
+  it("organisers can mark a list as filed; filed_at and filed_by go together", async () => {
+    const filed = await organiser
+      .from("events")
+      .update({ filed_at: new Date().toISOString(), filed_by: ORGANISER.email })
+      .eq("id", event.id)
+      .select("filed_by")
+      .single();
+    expect(filed.data).toEqual({ filed_by: ORGANISER.email });
+    const half = await organiser.from("events").update({ filed_at: null }).eq("id", event.id);
+    expect(half.error?.code).toBe("23514"); // check constraint
+    await organiser.from("events").update({ filed_at: null, filed_by: null }).eq("id", event.id);
+  });
+
+  it("non-organisers cannot mark lists as filed", async () => {
+    for (const client of [anon, outsider]) {
+      const upd = await client
+        .from("events")
+        .update({ filed_at: new Date().toISOString(), filed_by: "x@gmail.com" })
+        .eq("id", event.id)
+        .select();
+      expect(upd.data ?? []).toEqual([]);
+    }
+    const { data } = await organiser.from("events").select("filed_at").eq("id", event.id).single();
+    expect(data).toEqual({ filed_at: null });
+  });
+
   it("organisers can create, edit and delete events", async () => {
     const created = await organiser.from("events").insert(newEvent).select("id").single();
     expect(created.error).toBeNull();

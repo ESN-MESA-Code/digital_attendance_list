@@ -8,6 +8,7 @@ import { useParticipants } from "@/hooks/useParticipants";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
 import AttendanceTable from "@/components/AttendanceTable";
 import ExportButtons from "@/components/ExportButtons";
+import { formatFiled, setFiled } from "@/lib/events/filed";
 import type { Event } from "@/types";
 
 export default function EventDetailPage() {
@@ -15,6 +16,19 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const { participants, loading: loadingParticipants } = useParticipants(id);
+  const [filedError, setFiledError] = useState<string | null>(null);
+
+  async function toggleFiled() {
+    if (!event) return;
+    setFiledError(null);
+    try {
+      const { data } = await supabase.auth.getUser();
+      const [updated] = await setFiled([event.id], !event.filed_at, data.user?.email ?? null);
+      if (updated) setEvent(updated);
+    } catch (err) {
+      setFiledError(err instanceof Error ? err.message : "Could not update the event.");
+    }
+  }
 
   useEffect(() => {
     async function fetchEvent() {
@@ -77,6 +91,25 @@ export default function EventDetailPage() {
             minute: "2-digit",
           })}
         </p>
+      </div>
+
+      {/* Printed list in the office */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-4 flex flex-wrap items-center gap-3">
+        <div className="mr-auto">
+          <h2 className="text-sm font-semibold text-gray-900">Printed list</h2>
+          <p className={`text-xs ${event.filed_at ? "text-green-700" : "text-gray-500"}`}>{formatFiled(event)}</p>
+          {filedError && <p className="text-xs text-red-500 mt-1">{filedError}</p>}
+        </div>
+        <button
+          onClick={toggleFiled}
+          className={
+            event.filed_at
+              ? "text-sm text-gray-500 hover:underline"
+              : "bg-green-600 text-white text-sm px-3.5 py-2 rounded-lg shadow-sm hover:bg-green-700 transition-colors"
+          }
+        >
+          {event.filed_at ? "Undo" : "✓ Mark as filed"}
+        </button>
       </div>
 
       {/* QR Code */}

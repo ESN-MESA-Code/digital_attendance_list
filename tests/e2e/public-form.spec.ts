@@ -1,7 +1,15 @@
 // The public attendance form participants open from the QR code.
 import { admin } from "../helpers/local";
 import { decodeGreyPng } from "../helpers/png";
-import { acceptAndSubmit, drawSignature, expect, fillForm, test } from "./fixtures";
+import {
+  acceptAndContinue,
+  acceptSignAndSubmit,
+  drawSignature,
+  expect,
+  fillForm,
+  submitAttendance,
+  test,
+} from "./fixtures";
 
 async function rowsFor(eventId: string) {
   const { data } = await admin.from("participants").select("*").eq("event_id", eventId);
@@ -13,8 +21,7 @@ test("signs in with a small signature stored in the database", async ({ page, ev
   await expect(page.getByRole("heading", { name: event.title })).toBeVisible();
 
   await fillForm(page, { firstName: "Erika", lastName: "Mustermann" });
-  await drawSignature(page);
-  await acceptAndSubmit(page);
+  await acceptSignAndSubmit(page);
   await expect(page.getByText("Thank you!")).toBeVisible();
 
   const [row] = await rowsFor(event.id);
@@ -51,8 +58,7 @@ test("security: the form never reads the events table or sees organiser names", 
   await page.goto(`/event/${event.public_token}`);
   await expect(page.getByRole("heading", { name: event.title })).toBeVisible();
   await fillForm(page);
-  await drawSignature(page);
-  await acceptAndSubmit(page);
+  await acceptSignAndSubmit(page);
   await expect(page.getByText("Thank you!")).toBeVisible();
 
   expect(eventsTableRequests).toEqual([]);
@@ -61,30 +67,78 @@ test("security: the form never reads the events table or sees organiser names", 
   expect(everything).not.toContain("Lea LEI");
 });
 
+test("asks for the signature on its own page after the details", async ({ page, event }) => {
+  await page.goto(`/event/${event.public_token}`);
+  await expect(page.getByText("Step 1 of 2")).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(0);
+
+  await fillForm(page, { firstName: "Erika", lastName: "Mustermann" });
+  await acceptAndContinue(page);
+  await expect(page.getByText("Step 2 of 2")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Please sign, Erika Mustermann" })).toBeVisible();
+  await expect(page.locator('input[name="first_name"]')).toBeHidden();
+
+  // Back keeps every answer
+  await page.getByRole("button", { name: "← Back" }).click();
+  await expect(page.locator('input[name="first_name"]')).toHaveValue("Erika");
+  await expect(page.getByRole("radio", { name: "TUM" })).toBeChecked();
+  await expect(page.getByRole("checkbox")).toBeChecked();
+  await page.getByRole("button", { name: "Continue to signature →" }).click();
+  await drawSignature(page);
+  await submitAttendance(page);
+  await expect(page.getByText("Thank you!")).toBeVisible();
+  expect(await rowsFor(event.id)).toHaveLength(1);
+});
+
+test("the pad draws nothing until it is tapped", async ({ page, event }) => {
+  await page.goto(`/event/${event.public_token}`);
+  await fillForm(page);
+  await acceptAndContinue(page);
+  const unlock = page.getByRole("button", { name: "Tap here to sign" });
+  await expect(unlock).toBeVisible();
+
+  // A swipe across the locked pad (e.g. while scrolling) leaves no stroke.
+  const box = (await page.locator("canvas").boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 20, box.y + box.height - 20, { steps: 10 });
+  await page.mouse.up();
+  await submitAttendance(page);
+  await expect(page.getByText("Please provide your signature.")).toBeVisible();
+
+  await unlock.click();
+  await expect(unlock).toBeHidden();
+  await drawSignature(page);
+  await submitAttendance(page);
+  await expect(page.getByText("Thank you!")).toBeVisible();
+});
+
 test("requires a signature", async ({ page, event }) => {
   await page.goto(`/event/${event.public_token}`);
   await fillForm(page);
-  await acceptAndSubmit(page);
+  await acceptAndContinue(page);
+  await submitAttendance(page);
   await expect(page.getByText("Please provide your signature.")).toBeVisible();
   expect(await rowsFor(event.id)).toEqual([]);
 });
 
-test("requires every answer and the disclaimer", async ({ page, event }) => {
+test("requires every answer and the disclaimer before the signature", async ({ page, event }) => {
   await page.goto(`/event/${event.public_token}`);
-  await drawSignature(page);
-  await page.getByRole("button", { name: "Submit attendance" }).click();
+  await page.getByRole("button", { name: "Continue to signature →" }).click();
   await expect(page.getByText("First name is required")).toBeVisible();
   await expect(page.getByText("Please select your university")).toBeVisible();
   await expect(page.getByText("You must accept the disclaimer to continue.")).toBeVisible();
+  await expect(page.getByText("Step 2 of 2")).toBeHidden();
   expect(await rowsFor(event.id)).toEqual([]);
 });
 
 test("clearing the pad removes the signature", async ({ page, event }) => {
   await page.goto(`/event/${event.public_token}`);
   await fillForm(page);
+  await acceptAndContinue(page);
   await drawSignature(page);
   await page.getByRole("button", { name: "Clear" }).click();
-  await acceptAndSubmit(page);
+  await submitAttendance(page);
   await expect(page.getByText("Please provide your signature.")).toBeVisible();
 });
 
@@ -102,8 +156,7 @@ test("remembers details only after an explicit yes, never the signature", async 
 
   await page.goto(`/event/${event.public_token}`);
   await fillForm(page, { firstName: "Jean", lastName: "Dupont" });
-  await drawSignature(page);
-  await acceptAndSubmit(page);
+  await acceptSignAndSubmit(page);
   await expect(page.getByText("Save your details for next time?")).toBeVisible();
 
   // Nothing is stored until they agree
@@ -125,8 +178,7 @@ test("remembers details only after an explicit yes, never the signature", async 
   await page.goto(`/event/${event.public_token}`);
   await expect(page.locator('input[name="first_name"]')).toHaveValue("Jean");
   await page.locator('input[name="first_name"]').fill("Jeanne");
-  await drawSignature(page);
-  await acceptAndSubmit(page);
+  await acceptSignAndSubmit(page);
 
   // Asked again – the changed name is not saved by default
   await expect(page.getByText("Keep your details saved for next time?")).toBeVisible();
@@ -142,8 +194,7 @@ test("remembers details only after an explicit yes, never the signature", async 
 test("saying no the first time stores nothing", async ({ page, context, event }) => {
   await page.goto(`/event/${event.public_token}`);
   await fillForm(page);
-  await drawSignature(page);
-  await acceptAndSubmit(page);
+  await acceptSignAndSubmit(page);
   await page.getByRole("button", { name: "No, thanks" }).click();
   expect((await context.cookies()).find((c) => c.name === COOKIE)).toBeUndefined();
 });
@@ -151,8 +202,7 @@ test("saying no the first time stores nothing", async ({ page, context, event })
 test("saved details can be removed from the form without signing in", async ({ page, context, event }) => {
   await page.goto(`/event/${event.public_token}`);
   await fillForm(page);
-  await drawSignature(page);
-  await acceptAndSubmit(page);
+  await acceptSignAndSubmit(page);
   await page.getByRole("button", { name: "Save my details" }).click();
 
   await page.goto(`/event/${event.public_token}`);

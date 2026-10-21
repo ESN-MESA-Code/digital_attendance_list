@@ -25,9 +25,11 @@ export const test = base.extend<{
   },
 });
 
-/** Draws a wavy signature on the pad with real pointer moves. */
+/** Unlocks the pad with a tap, then draws a wavy signature with real pointer moves. */
 export async function drawSignature(page: Page, pad: Locator = page.locator("canvas")) {
   await pad.scrollIntoViewIfNeeded();
+  const unlock = page.getByRole("button", { name: "Tap here to sign" });
+  if (await unlock.isVisible()) await unlock.click();
   const box = (await pad.boundingBox())!;
   const y = box.y + box.height / 2;
   await page.mouse.move(box.x + box.width * 0.1, y);
@@ -60,7 +62,19 @@ export async function fillForm(page: Page, a: Answers = {}) {
   await page.getByRole("radio", { name: "Yes" }).check();
 }
 
-export async function acceptAndSubmit(page: Page) {
+/** Accepts the disclaimer and goes on to the signature page. */
+export async function acceptAndContinue(page: Page) {
   await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Continue to signature →" }).click();
+}
+
+export async function submitAttendance(page: Page) {
   await page.getByRole("button", { name: "Submit attendance" }).click();
+}
+
+/** The whole sign-in after fillForm: disclaimer, signature, submit. */
+export async function acceptSignAndSubmit(page: Page) {
+  await acceptAndContinue(page);
+  await drawSignature(page);
+  await submitAttendance(page);
 }

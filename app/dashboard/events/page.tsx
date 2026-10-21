@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import EventForm from "@/components/EventForm";
 import EventList from "@/components/EventList";
 import { supabase } from "@/lib/supabase/client";
-import { ExportLink } from "@/components/ExportButtons";
+import { DownloadIcon, ExportLink } from "@/components/ExportButtons";
+import { setFiled } from "@/lib/events/filed";
 import { MAX_EXPORT_EVENTS } from "@/lib/export/eventIds";
 import type { Event } from "@/types";
 
@@ -18,15 +19,19 @@ export default function EventsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  // Events ticked for the combined PDF.
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Picking events for the combined PDF: null when not exporting.
+  const [selected, setSelected] = useState<Set<string> | null>(null);
+  // Ids of the last combined download, offered to be marked as filed.
+  const [exported, setExported] = useState<string[] | null>(null);
+  const [onlyUnfiled, setOnlyUnfiled] = useState(false);
 
   useEffect(() => {
     async function fetchEvents() {
       const { data, error } = await supabase
         .from("events")
         .select("*")
-        .order("created_at", { ascending: false });
+        // Always by event date, newest first.
+        .order("event_date", { ascending: false });
       if (!error && data) setEvents(data as Event[]);
       setLoading(false);
     }
@@ -75,66 +80,138 @@ export default function EventsDashboard() {
 
   function toggle(id: string) {
     setSelected((prev) => {
-      const next = new Set(prev);
+      const next = new Set(prev ?? []);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
   }
 
+  function replaceEvents(updated: Event[]) {
+    const byId = new Map(updated.map((e) => [e.id, e]));
+    setEvents((prev) => prev.map((e) => byId.get(e.id) ?? e));
+  }
+
+  async function markFiled(ids: string[], filed: boolean) {
+    setError(null);
+    try {
+      replaceEvents(await setFiled(ids, filed, userEmail));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update the event.");
+    }
+  }
+
+  function stopExport() {
+    setSelected(null);
+    setExported(null);
+  }
+
   // "Your events" are the ones you created; "All events" lists everyone
   // else's (and older events without a creator), so nothing appears twice.
   const isMine = (e: Event) => !!userEmail && e.created_by?.toLowerCase() === userEmail;
-  const myEvents = events.filter(isMine);
-  const otherEvents = events.filter((e) => !isMine(e));
-  const tooMany = selected.size > MAX_EXPORT_EVENTS;
+  const shown = onlyUnfiled ? events.filter((e) => !e.filed_at) : events;
+  const myEvents = shown.filter(isMine);
+  const otherEvents = shown.filter((e) => !isMine(e));
+  const count = selected?.size ?? 0;
+  const tooMany = count > MAX_EXPORT_EVENTS;
+  const listProps = {
+    selected: selected ?? undefined,
+    onToggle: toggle,
+    onToggleFiled: (e: Event) => markFiled([e.id], !e.filed_at),
+  };
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Events</h1>
+      <div className="flex items-center gap-2 mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mr-auto">Events</h1>
+        <button
+          onClick={() => (selected ? stopExport() : setSelected(new Set()))}
+          aria-pressed={!!selected}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium shadow-sm transition-colors ${
+            selected
+              ? "border border-esn bg-esn/5 text-esn"
+              : "border border-gray-300 bg-white text-gray-700 hover:border-esn hover:text-esn"
+          }`}
+        >
+          <DownloadIcon />
+          Export PDF
+        </button>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="bg-esn text-white text-sm px-4 py-2 rounded-md hover:bg-esn-dark transition-colors"
+          className="bg-esn text-white text-sm px-4 py-2 rounded-lg shadow-sm hover:bg-esn-dark transition-colors"
         >
           {showForm ? "Cancel" : "+ New Event"}
         </button>
       </div>
 
+      {error && (
+        <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded px-3 py-2 mb-6">{error}</p>
+      )}
+
       {showForm && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">Create Event</h2>
-          {error && (
-            <p className="text-red-500 text-sm mb-3">{error}</p>
-          )}
           <EventForm onSubmit={handleCreate} loading={submitting} defaultResponsible={userName} />
         </div>
       )}
 
-      {selected.size > 0 && (
-        <div className="sticky top-2 z-10 bg-white rounded-xl shadow-md border border-gray-200 px-4 py-3 mb-6 flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-gray-700">
-            {selected.size} selected
-          </span>
-          <button
-            onClick={() => setSelected(new Set())}
-            className="text-sm text-gray-500 hover:underline"
-          >
-            Clear
-          </button>
-          <div className="ml-auto">
-            {tooMany ? (
-              <span className="text-sm text-red-500">At most {MAX_EXPORT_EVENTS} events</span>
-            ) : (
-              <ExportLink
-                href={`/api/export/events/pdf?ids=${[...selected].join(",")}`}
-                label="Export PDF"
-                primary
-              />
-            )}
-          </div>
+      {selected && (
+        <div className="sticky top-2 z-10 bg-white rounded-xl shadow-md border border-esn/30 px-4 py-3 mb-6">
+          {exported ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-gray-700 mr-auto">
+                Downloaded {exported.length} {exported.length === 1 ? "list" : "lists"}. Printed and put into the office?
+              </span>
+              <button
+                onClick={async () => {
+                  await markFiled(exported, true);
+                  stopExport();
+                }}
+                className="bg-green-600 text-white text-sm px-3.5 py-2 rounded-lg shadow-sm hover:bg-green-700 transition-colors"
+              >
+                ✓ Mark as filed
+              </button>
+              <button onClick={stopExport} className="text-sm text-gray-500 hover:underline">
+                Not now
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-gray-700 mr-auto">
+                {count === 0 ? "Select the events to export" : `${count} selected`}
+              </span>
+              <button onClick={stopExport} className="text-sm text-gray-500 hover:underline">
+                Cancel
+              </button>
+              {tooMany ? (
+                <span className="text-sm text-red-500">At most {MAX_EXPORT_EVENTS} events</span>
+              ) : count === 0 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium bg-gray-200 text-gray-400 cursor-not-allowed">
+                  <DownloadIcon />
+                  Download PDF
+                </span>
+              ) : (
+                <ExportLink
+                  href={`/api/export/events/pdf?ids=${[...selected].join(",")}`}
+                  label={`Download PDF (${count})`}
+                  onClick={() => setExported([...selected])}
+                  primary
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
+
+      <label className="flex items-center gap-2 text-sm text-gray-600 mb-3 px-1">
+        <input
+          type="checkbox"
+          checked={onlyUnfiled}
+          onChange={(e) => setOnlyUnfiled(e.target.checked)}
+          className="h-4 w-4 accent-esn"
+        />
+        Only lists not yet filed in the office
+      </label>
 
       {loading ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -146,9 +223,8 @@ export default function EventsDashboard() {
             <h2 id="your-events" className="text-lg font-semibold mb-4">Your events</h2>
             <EventList
               events={myEvents}
-              emptyText="You haven't created any events yet."
-              selected={selected}
-              onToggle={toggle}
+              emptyText={onlyUnfiled ? "All your lists are filed." : "You haven't created any events yet."}
+              {...listProps}
             />
           </section>
           <section aria-labelledby="all-events" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -156,9 +232,8 @@ export default function EventsDashboard() {
             <p className="text-xs text-gray-500 mb-3">Created by other organisers, or before creators were recorded.</p>
             <EventList
               events={otherEvents}
-              emptyText="No other events."
-              selected={selected}
-              onToggle={toggle}
+              emptyText={onlyUnfiled ? "All other lists are filed." : "No other events."}
+              {...listProps}
             />
           </section>
         </div>

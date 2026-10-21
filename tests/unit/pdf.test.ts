@@ -13,6 +13,8 @@ const event: Event = {
   lei_responsible: "Lea LEI",
   public_token: "t",
   created_by: null,
+  filed_at: null,
+  filed_by: null,
   created_at: "2026-10-01T00:00:00Z",
 };
 

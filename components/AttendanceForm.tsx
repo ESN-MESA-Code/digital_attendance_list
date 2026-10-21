@@ -40,8 +40,9 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-// form → (submitted) → ask to remember details → done
-type Step = "form" | "save" | "done";
+// details and consent → signature on its own page → (submitted) →
+// ask to remember details → done
+type Step = "form" | "sign" | "save" | "done";
 
 const inputClass =
   "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent";
@@ -71,6 +72,8 @@ export default function AttendanceForm({ event, kiosk }: Props) {
   // Whether the form was pre-filled from details saved on this device.
   const [usedSaved, setUsedSaved] = useState(false);
   const [submittedDetails, setSubmittedDetails] = useState<SavedDetails | null>(null);
+  // The checked answers from the first page, while the participant signs.
+  const [answers, setAnswers] = useState<FormData | null>(null);
   const sigPadRef = useRef<SignaturePadHandle>(null);
   const isKiosk = kiosk !== undefined;
   const onNext = kiosk?.onNext;
@@ -127,7 +130,16 @@ export default function AttendanceForm({ event, kiosk }: Props) {
     } as unknown as FormData);
   }
 
-  async function onSubmit(data: FormData) {
+  function goToSignature(data: FormData) {
+    setAnswers(data);
+    setError(null);
+    setStep("sign");
+    window.scrollTo(0, 0);
+  }
+
+  async function submitAttendance() {
+    const data = answers;
+    if (!data) return;
     if (sigPadRef.current?.isEmpty()) {
       setError("Please provide your signature.");
       return;
@@ -298,16 +310,18 @@ export default function AttendanceForm({ event, kiosk }: Props) {
             </p>
           </div>
 
-          {usedSaved && (
+          {usedSaved && step === "form" && (
             <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-gray-700">
-              We filled in your saved details – please check them and sign below.{" "}
+              We filled in your saved details – please check them, then continue to sign.{" "}
               <button type="button" onClick={handleForget} className="text-esn underline">
                 Not you? Remove saved details
               </button>
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Hidden, not unmounted, while signing: "Back" finds every answer as left. */}
+          <form onSubmit={handleSubmit(goToSignature)} className="space-y-4" hidden={step !== "form"}>
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Step 1 of 2 · Your details</p>
             {/* Name */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -440,14 +454,6 @@ export default function AttendanceForm({ event, kiosk }: Props) {
               )}
             </div>
 
-            {/* Signature */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Signature <span className="text-red-500">*</span>
-              </label>
-              <SignaturePad ref={sigPadRef} />
-            </div>
-
             {/* Disclaimer */}
             <div className="rounded-md border border-gray-300 bg-gray-50 p-4 text-xs text-gray-700">
               <p className="font-bold uppercase tracking-wide mb-1">Disclaimer</p>
@@ -480,20 +486,57 @@ export default function AttendanceForm({ event, kiosk }: Props) {
               )}
             </div>
 
-            {error && (
-              <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-                {error}
-              </p>
-            )}
-
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark transition-colors"
             >
-              {submitting ? "Submitting…" : "Submit attendance"}
+              Continue to signature →
             </button>
           </form>
+
+          {step === "sign" && answers && (
+            <div className="space-y-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Step 2 of 2 · Signature</p>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Please sign, {answers.first_name} {answers.last_name}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Your signature confirms your attendance and that you accept the disclaimer.
+                </p>
+              </div>
+
+              <SignaturePad ref={sigPadRef} />
+
+              {error && (
+                <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+                  {error}
+                </p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setStep("form");
+                  }}
+                  disabled={submitting}
+                  className="border border-gray-300 text-gray-700 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={submitAttendance}
+                  disabled={submitting}
+                  className="flex-1 bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submitting ? "Submitting…" : "Submit attendance"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>

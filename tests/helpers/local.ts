@@ -74,7 +74,8 @@ export interface TestEvent {
 /** Creates an event with a random token (as the service role, so no creator unless given). */
 export async function createEvent(
   title = `Test event ${crypto.randomUUID().slice(0, 8)}`,
-  createdBy: string | null = null
+  createdBy: string | null = null,
+  extra: object = {}
 ) {
   const { data, error } = await admin
     .from("events")
@@ -86,6 +87,7 @@ export async function createEvent(
       lei_responsible: "Lea LEI",
       public_token: crypto.randomUUID().replace(/-/g, ""),
       created_by: createdBy,
+      ...extra,
     })
     .select("id, public_token, title")
     .single();

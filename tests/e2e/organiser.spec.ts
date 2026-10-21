@@ -3,7 +3,7 @@
 import { PDFDocument } from "pdf-lib";
 import { ORGANISER, admin, anonClient, createEvent, deleteEvent, participantRow } from "../helpers/local";
 import { sampleSignature } from "../helpers/png";
-import { acceptAndSubmit, drawSignature, expect, fillForm, test } from "./fixtures";
+import { acceptSignAndSubmit, expect, fillForm, test } from "./fixtures";
 
 test.beforeEach(async ({ signInAsOrganiser }) => {
   await signInAsOrganiser();
@@ -57,8 +57,7 @@ test("kiosk mode records sign-ins under the organiser and starts over", async ({
   await expect(page.getByText(`Signed in as ${ORGANISER.email}`)).toBeVisible();
 
   await fillForm(page, { firstName: "Kiosk", lastName: "Person" });
-  await drawSignature(page);
-  await acceptAndSubmit(page);
+  await acceptSignAndSubmit(page);
   await expect(page.getByText("Please hand the device back")).toBeVisible();
   // Shared device: no offer to remember details
   await expect(page.getByText("Save your details for next time?")).toHaveCount(0);
@@ -138,7 +137,7 @@ test("lists your own events first, then everyone else's", async ({ page, event }
   }
 });
 
-test("exports several selected events as one PDF", async ({ page, event }) => {
+test("exports several events as one PDF and marks them as filed", async ({ page, event }) => {
   const second = await createEvent(`Second ${Date.now()}`, ORGANISER.email);
   try {
     const signature = await sampleSignature();
@@ -148,14 +147,19 @@ test("exports several selected events as one PDF", async ({ page, event }) => {
     ]);
 
     await page.goto("/dashboard/events");
-    await expect(page.getByRole("link", { name: "Export PDF" })).toHaveCount(0);
+    // No checkboxes until you start an export
+    await expect(page.getByRole("checkbox", { name: `Select ${event.title}` })).toHaveCount(0);
+    await page.getByRole("button", { name: "Export PDF" }).click();
+    await expect(page.getByText("Select the events to export")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Download PDF/ })).toHaveCount(0);
+
     await page.getByRole("checkbox", { name: `Select ${event.title}` }).check();
     await page.getByRole("checkbox", { name: `Select ${second.title}` }).check();
     await expect(page.getByText("2 selected")).toBeVisible();
 
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      page.getByRole("link", { name: "Export PDF" }).click(),
+      page.getByRole("link", { name: "Download PDF (2)" }).click(),
     ]);
     expect(download.suggestedFilename()).toBe("attendance_2_events.pdf");
     const url = new URL(download.url());
@@ -167,9 +171,61 @@ test("exports several selected events as one PDF", async ({ page, event }) => {
     const doc = await PDFDocument.load(await res.body());
     // One page per event (few participants each).
     expect(doc.getPageCount()).toBe(2);
+
+    // Offered to mark the printed lists as filed
+    await page.getByRole("button", { name: "✓ Mark as filed" }).click();
+    await expect(page.getByRole("button", { name: `Filed: ${event.title}` })).toBeVisible();
+    await expect(page.getByRole("button", { name: `Filed: ${second.title}` })).toBeVisible();
+    const { data } = await admin.from("events").select("filed_at, filed_by").in("id", [event.id, second.id]);
+    expect(data).toHaveLength(2);
+    for (const row of data!) {
+      expect(row.filed_at).not.toBeNull();
+      expect(row.filed_by).toBe(ORGANISER.email);
+    }
+    await expect(page.getByRole("checkbox", { name: `Select ${event.title}` })).toHaveCount(0);
   } finally {
     await deleteEvent(second.id);
   }
+});
+
+test("events are sorted by date, newest first", async ({ page }) => {
+  const stamp = Date.now();
+  const at = (d: string) => ({ event_date: d });
+  const made = [
+    await createEvent(`Sort B ${stamp}`, ORGANISER.email, at("2031-03-01T18:00:00Z")),
+    await createEvent(`Sort C ${stamp}`, ORGANISER.email, at("2031-01-01T18:00:00Z")),
+    await createEvent(`Sort A ${stamp}`, ORGANISER.email, at("2031-05-01T18:00:00Z")),
+  ];
+  try {
+    await page.goto("/dashboard/events");
+    const titles = page.getByRole("region", { name: "Your events" }).getByText(new RegExp(`^Sort . ${stamp}$`));
+    await expect(titles).toHaveText([`Sort A ${stamp}`, `Sort B ${stamp}`, `Sort C ${stamp}`]);
+  } finally {
+    for (const e of made) await deleteEvent(e.id);
+  }
+});
+
+test("tracks which printed lists are filed in the office", async ({ page, event }) => {
+  await page.goto("/dashboard/events");
+  const chip = page.getByRole("button", { name: `Not filed: ${event.title}` });
+  await chip.click();
+  await expect(page.getByRole("button", { name: `Filed: ${event.title}` })).toBeVisible();
+
+  // "Only not yet filed" hides it
+  await page.getByLabel("Only lists not yet filed in the office").check();
+  await expect(page.getByText(event.title)).toHaveCount(0);
+  await page.getByLabel("Only lists not yet filed in the office").uncheck();
+
+  // The event page shows who filed it, and can undo
+  await page.goto(`/dashboard/events/${event.id}`);
+  await expect(page.getByText(`by ${ORGANISER.email}`)).toBeVisible();
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Not filed yet")).toBeVisible();
+  await page.getByRole("button", { name: "✓ Mark as filed" }).click();
+  await expect(page.getByText(/^Filed in the office on/)).toBeVisible();
+
+  const { data } = await admin.from("events").select("filed_by").eq("id", event.id).single();
+  expect(data!.filed_by).toBe(ORGANISER.email);
 });
 
 test("the combined export checks its ids", async ({ page, event }) => {

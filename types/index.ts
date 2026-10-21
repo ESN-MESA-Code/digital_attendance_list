@@ -8,6 +8,10 @@ export interface Event {
   public_token: string;
   /** Email of the organiser who created the event (null for older events) */
   created_by: string | null;
+  /** When the printed list was put into the office folder (null: not yet) */
+  filed_at: string | null;
+  /** Email of the organiser who marked it as filed */
+  filed_by: string | null;
   created_at: string;
 }
 
