@@ -143,8 +143,8 @@ npm run dev:local        # the app on http://localhost:3000 with the local keys
 Google sign-in does not work against the local stack, so the login page then shows a
 **Local test sign-in** button (organiser@esnmesa.org from `supabase/seed.sql`). It only
 appears with `npm run dev:local` and only while the app talks to a Supabase on your own
-machine. `seed:demo` prints the participant-form link of each demo event; open one on
-your phone via your computer's IP address, or in a narrow browser window.
+machine. `seed:demo` prints the participant-form link of each demo event. For the phone view use
+your browser's device mode (the local database is only reachable from this computer).
 `npx supabase@2.121.0 db reset` wipes the local database back to the seed.
 Stop `dev:local` before `npm run test:e2e`: Next.js runs only one dev server per folder.
 
