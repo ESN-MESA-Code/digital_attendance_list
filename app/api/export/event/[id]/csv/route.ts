@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getWorkspaceUser } from "@/lib/supabase/session";
-import { countryName, parseLang } from "@/lib/countries";
+import { countryName } from "@/lib/countries";
 import { escapeCSV } from "@/lib/csv";
 import type { Event, Participant } from "@/types";
 
@@ -10,9 +10,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  // Language for country names: ?lang=de (default) or ?lang=en
-  const lang = parseLang(req.nextUrl.searchParams.get("lang"));
-
   // Defence in depth – the proxy already blocks unauthenticated requests.
   if (!(await getWorkspaceUser())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -45,7 +42,7 @@ export async function GET(
       [
         escapeCSV(p.last_name),
         escapeCSV(p.first_name),
-        escapeCSV(countryName(p.nationality, lang)),
+        escapeCSV(countryName(p.nationality)),
         escapeCSV(p.university),
         escapeCSV(p.exchange_program),
         p.esn_card === null ? "" : p.esn_card ? "Yes" : "No",

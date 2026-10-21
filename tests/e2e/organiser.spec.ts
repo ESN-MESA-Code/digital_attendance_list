@@ -79,7 +79,13 @@ test("exports CSV without signatures and PDF with them", async ({ page, event })
     participantRow(event.id, signature, { first_name: "Zoë", nationality: "DE" }),
   ]);
 
-  const csv = await page.request.get(`/api/export/event/${event.id}/csv?lang=en`);
+  await page.goto(`/dashboard/events/${event.id}`);
+  await expect(page.getByRole("link", { name: "Download as CSV" })).toHaveAttribute("href", `/api/export/event/${event.id}/csv`);
+  await expect(page.getByRole("link", { name: "Download as PDF" })).toHaveAttribute("href", `/api/export/event/${event.id}/pdf`);
+  // Country names are always exported in English.
+  await expect(page.getByRole("combobox")).toHaveCount(0);
+
+  const csv = await page.request.get(`/api/export/event/${event.id}/csv`);
   expect(csv.status()).toBe(200);
   expect(csv.headers()["content-type"]).toContain("text/csv");
   const text = await csv.text();
@@ -94,8 +100,7 @@ test("exports CSV without signatures and PDF with them", async ({ page, event })
   // Security: the formula is neutralised for spreadsheet apps
   expect(text).toContain(`"'=HYPERLINK(""http://evil"")"`);
 
-  const de = await page.request.get(`/api/export/event/${event.id}/csv`);
-  expect(await de.text()).toContain("Deutschland");
+  expect(text).not.toContain("Deutschland");
 
   const pdf = await page.request.get(`/api/export/event/${event.id}/pdf`);
   expect(pdf.status()).toBe(200);
@@ -147,7 +152,6 @@ test("exports several selected events as one PDF", async ({ page, event }) => {
     await page.getByRole("checkbox", { name: `Select ${event.title}` }).check();
     await page.getByRole("checkbox", { name: `Select ${second.title}` }).check();
     await expect(page.getByText("2 selected")).toBeVisible();
-    await page.getByRole("combobox").selectOption("en");
 
     const [download] = await Promise.all([
       page.waitForEvent("download"),
@@ -156,7 +160,6 @@ test("exports several selected events as one PDF", async ({ page, event }) => {
     expect(download.suggestedFilename()).toBe("attendance_2_events.pdf");
     const url = new URL(download.url());
     expect(url.pathname).toBe("/api/export/events/pdf");
-    expect(url.searchParams.get("lang")).toBe("en");
 
     const res = await page.request.get(url.pathname + url.search);
     expect(res.status()).toBe(200);

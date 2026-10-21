@@ -1,46 +1,44 @@
-"use client";
+interface LinkProps {
+  href: string;
+  label: string;
+  /** Accessible name and tooltip, when the label alone is terse. */
+  description?: string;
+  /** Filled ESN blue for the main action, outlined otherwise. */
+  primary?: boolean;
+}
 
-import { useState } from "react";
-import { DEFAULT_EXPORT_LANG, EXPORT_LANGUAGES, type Lang } from "@/lib/countries";
+/** A download link styled as a button, with a download icon. */
+export function ExportLink({ href, label, description, primary = false }: LinkProps) {
+  return (
+    <a
+      href={href}
+      download
+      title={description}
+      aria-label={description}
+      className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-esn-accent focus-visible:ring-offset-1 ${
+        primary
+          ? "bg-esn text-white hover:bg-esn-dark"
+          : "border border-gray-300 bg-white text-gray-700 hover:border-esn hover:text-esn"
+      }`}
+    >
+      <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="h-4 w-4">
+        <path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.69L6.28 8.47a.75.75 0 0 0-1.06 1.06l4.25 4.25a.75.75 0 0 0 1.06 0l4.25-4.25a.75.75 0 1 0-1.06-1.06l-2.97 2.97V2.75Z" />
+        <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
+      </svg>
+      {label}
+    </a>
+  );
+}
 
 interface Props {
   eventId: string;
 }
 
 export default function ExportButtons({ eventId }: Props) {
-  // Language of the country names in the exported file.
-  const [lang, setLang] = useState<Lang>(DEFAULT_EXPORT_LANG);
-
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <label className="flex items-center gap-2 text-sm text-gray-600">
-        Countries in
-        <select
-          value={lang}
-          onChange={(e) => setLang(e.target.value as Lang)}
-          className="border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-esn-accent"
-        >
-          {Object.entries(EXPORT_LANGUAGES).map(([code, label]) => (
-            <option key={code} value={code}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <a
-        href={`/api/export/event/${eventId}/csv?lang=${lang}`}
-        download
-        className="inline-flex items-center gap-1 bg-green-600 text-white text-sm px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
-      >
-        Export CSV
-      </a>
-      <a
-        href={`/api/export/event/${eventId}/pdf?lang=${lang}`}
-        download
-        className="inline-flex items-center gap-1 bg-red-600 text-white text-sm px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
-      >
-        Export PDF
-      </a>
+    <div className="flex items-center gap-2">
+      <ExportLink href={`/api/export/event/${eventId}/csv`} label="CSV" description="Download as CSV" />
+      <ExportLink href={`/api/export/event/${eventId}/pdf`} label="PDF" description="Download as PDF" primary />
     </div>
   );
 }

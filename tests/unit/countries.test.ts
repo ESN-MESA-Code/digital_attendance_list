@@ -1,16 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countryName, isCountryCode, matchCountry, parseLang, searchCountries } from "@/lib/countries";
-
-describe("parseLang", () => {
-  it("accepts de and en, defaults to de", () => {
-    expect(parseLang("en")).toBe("en");
-    expect(parseLang("de")).toBe("de");
-    expect(parseLang(null)).toBe("de");
-    expect(parseLang("fr")).toBe("de");
-    expect(parseLang("__proto__")).toBe("de");
-    expect(parseLang("toString")).toBe("de");
-  });
-});
+import { countryName, isCountryCode, matchCountry, searchCountries } from "@/lib/countries";
 
 describe("isCountryCode", () => {
   it("knows ISO alpha-2 codes only", () => {
@@ -22,7 +11,8 @@ describe("isCountryCode", () => {
 });
 
 describe("countryName", () => {
-  it("prints names in German or English", () => {
+  it("prints names in English unless asked for German", () => {
+    expect(countryName("DE")).toBe("Germany");
     expect(countryName("DE", "de")).toBe("Deutschland");
     expect(countryName("DE", "en")).toBe("Germany");
     expect(countryName("IT", "de")).toBe("Italien");

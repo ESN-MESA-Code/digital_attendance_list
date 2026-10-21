@@ -3,19 +3,12 @@ import en from "i18n-iso-countries/langs/en.json";
 import de from "i18n-iso-countries/langs/de.json";
 
 // Nationalities are stored as ISO 3166-1 alpha-2 codes ("DE") and turned
-// into names only for display, so exports can pick their language. Names come
+// into names only for display (English; German names help the search). Names come
 // from the i18n-iso-countries package – there is no list to maintain here.
 countries.registerLocale(en);
 countries.registerLocale(de);
 
-export const EXPORT_LANGUAGES = { de: "Deutsch", en: "English" } as const;
-export type Lang = keyof typeof EXPORT_LANGUAGES;
-export const DEFAULT_EXPORT_LANG: Lang = "de";
-
-export function parseLang(value: string | null | undefined): Lang {
-  // hasOwn, not `in`: "__proto__" or "toString" from the URL are not languages.
-  return value && Object.hasOwn(EXPORT_LANGUAGES, value) ? (value as Lang) : DEFAULT_EXPORT_LANG;
-}
+type Lang = "en" | "de";
 
 /** Lower-case and strip accents, so "turkiye" matches "Türkiye". */
 const normalize = (s: string) =>

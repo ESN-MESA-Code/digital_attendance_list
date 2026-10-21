@@ -2,15 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getWorkspaceUser } from "@/lib/supabase/session";
 import { generateCombinedAttendancePdf } from "@/lib/pdf/generate";
-import { parseLang } from "@/lib/countries";
 import { MAX_EXPORT_EVENTS, parseEventIds } from "@/lib/export/eventIds";
 import type { Event, Participant } from "@/types";
 
 // One PDF with the attendance lists of several events: ?ids=<uuid>,<uuid>,…
 export async function GET(req: NextRequest) {
-  // Language for country names: ?lang=de (default) or ?lang=en
-  const lang = parseLang(req.nextUrl.searchParams.get("lang"));
-
   // Defence in depth – the proxy already blocks unauthenticated requests.
   if (!(await getWorkspaceUser())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -53,8 +49,7 @@ export async function GET(req: NextRequest) {
       (events as Event[]).map((event) => ({
         event,
         participants: all.filter((p) => p.event_id === event.id),
-      })),
-      lang
+      }))
     );
 
     return new NextResponse(Buffer.from(pdfBytes), {

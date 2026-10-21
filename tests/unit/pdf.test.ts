@@ -58,7 +58,7 @@ describe("generateAttendancePdf", () => {
   it("embeds every stored signature and adds pages as needed", async () => {
     const sig = await sampleSignature();
     const people = Array.from({ length: 40 }, (_, i) => participant(i, sig));
-    const { doc, imageCount } = await load(await generateAttendancePdf(event, people, "en"));
+    const { doc, imageCount } = await load(await generateAttendancePdf(event, people));
     expect(doc.getPageCount()).toBe(2);
     expect(imageCount).toBe(logoImages + 40);
   });
@@ -84,7 +84,7 @@ describe("generateCombinedAttendancePdf", () => {
       { event: other, participants: Array.from({ length: 40 }, (_, i) => participant(i, sig)) },
       { event: third, participants: [participant(1, sig)] },
     ];
-    const combined = await load(await generateCombinedAttendancePdf(lists, "en"));
+    const combined = await load(await generateCombinedAttendancePdf(lists));
 
     // The same as the single exports back to back.
     const singles = await Promise.all(

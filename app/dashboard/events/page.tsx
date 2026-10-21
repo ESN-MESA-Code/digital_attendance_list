@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import EventForm from "@/components/EventForm";
 import EventList from "@/components/EventList";
 import { supabase } from "@/lib/supabase/client";
-import { DEFAULT_EXPORT_LANG, EXPORT_LANGUAGES, type Lang } from "@/lib/countries";
+import { ExportLink } from "@/components/ExportButtons";
 import { MAX_EXPORT_EVENTS } from "@/lib/export/eventIds";
 import type { Event } from "@/types";
 
@@ -18,9 +18,8 @@ export default function EventsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  // Events ticked for the combined PDF, and the language of its country names.
+  // Events ticked for the combined PDF.
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [exportLang, setExportLang] = useState<Lang>(DEFAULT_EXPORT_LANG);
 
   useEffect(() => {
     async function fetchEvents() {
@@ -123,31 +122,17 @@ export default function EventsDashboard() {
           >
             Clear
           </button>
-          <label className="ml-auto flex items-center gap-2 text-sm text-gray-600">
-            Countries in
-            <select
-              value={exportLang}
-              onChange={(e) => setExportLang(e.target.value as Lang)}
-              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-esn-accent"
-            >
-              {Object.entries(EXPORT_LANGUAGES).map(([code, label]) => (
-                <option key={code} value={code}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {tooMany ? (
-            <span className="text-sm text-red-500">At most {MAX_EXPORT_EVENTS} events</span>
-          ) : (
-            <a
-              href={`/api/export/events/pdf?ids=${[...selected].join(",")}&lang=${exportLang}`}
-              download
-              className="inline-flex items-center gap-1 bg-red-600 text-white text-sm px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
-            >
-              Export PDF
-            </a>
-          )}
+          <div className="ml-auto">
+            {tooMany ? (
+              <span className="text-sm text-red-500">At most {MAX_EXPORT_EVENTS} events</span>
+            ) : (
+              <ExportLink
+                href={`/api/export/events/pdf?ids=${[...selected].join(",")}`}
+                label="Export PDF"
+                primary
+              />
+            )}
+          </div>
         </div>
       )}
 

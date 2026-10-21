@@ -42,11 +42,15 @@ test("shows each participant compactly", async ({ page, event }, testInfo) => {
     // Full name first, short labels on the second line
     await expect(items.nth(0)).toContainText("Max Mustermann");
     const long = items.nth(1);
-    await expect(long).toContainText("GB · Oth · FT · ESN – ·");
+    await expect(long).toHaveText(/GB · Oth · FT · ESN –\s*$/);
     await expect(items.nth(0)).toContainText("ESN ✓");
     await expect(items.nth(2)).toContainText("LMUex");
     await expect(items.nth(3).getByText("K", { exact: true })).toBeVisible();
   }
+
+  // No sign-in time for now.
+  await expect(page.getByRole("columnheader", { name: "Time" })).toHaveCount(0);
+  await expect(items.first()).not.toContainText(/\d\d:\d\d/);
 
   // Lines of text per item (a wrapped text node has client rects at several
   // heights), and where the signature sits.

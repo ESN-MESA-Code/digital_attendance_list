@@ -3,7 +3,7 @@ import path from "node:path";
 import { PDFDocument, rgb, PDFPage, PDFFont, PDFImage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { ESN_LOGO_PNG_BASE64 } from "./esn-logo";
-import { countryName, DEFAULT_EXPORT_LANG, type Lang } from "@/lib/countries";
+import { countryName } from "@/lib/countries";
 import { SIGNATURE_PREFIX } from "@/lib/signature";
 import type { Event, Participant } from "@/types";
 
@@ -341,20 +341,18 @@ async function createDocument(): Promise<{ pdfDoc: PDFDocument; assets: DocAsset
 
 export async function generateAttendancePdf(
   event: Event,
-  participants: Participant[],
-  lang: Lang = DEFAULT_EXPORT_LANG
+  participants: Participant[]
 ): Promise<Uint8Array> {
-  return generateCombinedAttendancePdf([{ event, participants }], lang);
+  return generateCombinedAttendancePdf([{ event, participants }]);
 }
 
 /** One PDF with each event's list in turn; every event starts on a new page. */
 export async function generateCombinedAttendancePdf(
-  lists: Array<{ event: Event; participants: Participant[] }>,
-  lang: Lang = DEFAULT_EXPORT_LANG
+  lists: Array<{ event: Event; participants: Participant[] }>
 ): Promise<Uint8Array> {
   const { pdfDoc, assets } = await createDocument();
   for (const { event, participants } of lists) {
-    await appendEventPages(pdfDoc, assets, event, participants, lang);
+    await appendEventPages(pdfDoc, assets, event, participants);
   }
   return await pdfDoc.save();
 }
@@ -364,8 +362,7 @@ async function appendEventPages(
   pdfDoc: PDFDocument,
   { fonts, logo }: DocAssets,
   event: Event,
-  participants: Participant[],
-  lang: Lang
+  participants: Participant[]
 ): Promise<void> {
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   let rowTop = drawTableHeader(page, drawFirstPageHeader(page, event, fonts, logo), fonts);
@@ -414,7 +411,7 @@ async function appendEventPages(
 
     textCell(C_LAST, p?.last_name ?? "");
     textCell(C_FIRST, p?.first_name ?? "");
-    textCell(C_NAT, p ? countryName(p.nationality, lang) : "");
+    textCell(C_NAT, p ? countryName(p.nationality) : "");
 
     for (const o of UNI_OPTS) {
       const y = lineY(o.line);

@@ -2,7 +2,7 @@
 
 import type { Participant } from "@/types";
 import Image from "next/image";
-import { countryName, DEFAULT_EXPORT_LANG } from "@/lib/countries";
+import { countryName } from "@/lib/countries";
 
 interface Props {
   participants: Participant[];
@@ -16,10 +16,6 @@ const SHORT_PROGRAMME: Record<string, string> = {
   "Full-time degree": "FT",
   Other: "Oth",
 };
-
-function time(p: Participant) {
-  return new Date(p.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-}
 
 function KioskBadge({ p, short = false }: { p: Participant; short?: boolean }) {
   if (p.entry_method !== "kiosk") return null;
@@ -60,13 +56,12 @@ export default function AttendanceTable({ participants }: Props) {
     <>
       <ul className="sm:hidden divide-y divide-gray-200">
         {participants.map((p, idx) => {
-          const country = countryName(p.nationality, DEFAULT_EXPORT_LANG);
+          const country = countryName(p.nationality);
           const details = [
             p.nationality,
             p.university === "Other" ? "Oth" : p.university,
             SHORT_PROGRAMME[p.exchange_program] ?? p.exchange_program,
             p.esn_card === null ? null : `ESN ${p.esn_card ? "✓" : "–"}`,
-            time(p),
           ].filter(Boolean);
           return (
             <li
@@ -104,7 +99,6 @@ export default function AttendanceTable({ participants }: Props) {
               <th className="px-3 py-2 whitespace-nowrap">Exchange Programme</th>
               <th className="px-3 py-2 whitespace-nowrap">ESNcard</th>
               <th className="px-3 py-2 whitespace-nowrap">Signature</th>
-              <th className="px-3 py-2 whitespace-nowrap">Time</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -115,7 +109,7 @@ export default function AttendanceTable({ participants }: Props) {
                   {p.last_name} <KioskBadge p={p} />
                 </td>
                 <td className="px-3 py-2 text-gray-700">{p.first_name}</td>
-                <td className="px-3 py-2 text-gray-600">{countryName(p.nationality, DEFAULT_EXPORT_LANG)}</td>
+                <td className="px-3 py-2 text-gray-600">{countryName(p.nationality)}</td>
                 <td className="px-3 py-2 text-gray-600">{p.university ?? "—"}</td>
                 <td className="px-3 py-2 text-gray-600">{p.exchange_program ?? "—"}</td>
                 <td className="px-3 py-2 text-gray-600">
@@ -124,7 +118,6 @@ export default function AttendanceTable({ participants }: Props) {
                 <td className="px-3 py-2">
                   <Signature p={p} className="h-10 w-[7.5rem]" />
                 </td>
-                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{time(p)}</td>
               </tr>
             ))}
           </tbody>
