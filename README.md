@@ -144,3 +144,4 @@ unique(event_id, email)
 ## License
 
 MIT
+# digital_attendance_list
