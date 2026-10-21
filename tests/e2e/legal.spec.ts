@@ -25,14 +25,16 @@ test("the login page links both in its footer", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Privacy notice" })).toBeVisible();
 });
 
-test("the attendance form links the privacy notice in a new tab", async ({ page, event }) => {
+test("the attendance form explains data protection and links the notice in its footer", async ({ page, event }) => {
   await page.goto(`/event/${event.public_token}`);
-  const link = page.getByRole("link", { name: "How we handle your data" });
-  await expect(link).toHaveAttribute("target", "_blank");
-  const [notice] = await Promise.all([page.waitForEvent("popup"), link.click()]);
+  await expect(page.getByText("Data protection", { exact: true })).toBeVisible();
+  await expect(page.getByText("it@esnmesa.org")).toBeVisible();
+  // Links only in the page footer, in a new tab so the form keeps what was entered.
+  const footer = page.getByRole("contentinfo");
+  await expect(footer.getByRole("link", { name: "Impressum / Legal notice" })).toHaveAttribute("target", "_blank");
+  const [notice] = await Promise.all([
+    page.waitForEvent("popup"),
+    footer.getByRole("link", { name: "Privacy / Datenschutz" }).click(),
+  ]);
   await expect(notice.getByRole("heading", { level: 1, name: "Privacy notice" })).toBeVisible();
-  // The footer links open new tabs too, so the form keeps what was entered.
-  await expect(
-    page.getByRole("contentinfo").getByRole("link", { name: "Impressum / Legal notice" })
-  ).toHaveAttribute("target", "_blank");
 });

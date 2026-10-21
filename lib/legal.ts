@@ -3,8 +3,11 @@
 // processors change (board as on mesa.esn-germany.de/legal-notice).
 
 export const ASSOCIATION = {
+  // The registered name (Satzung § 1, Vereinsregister). "ESN MESA München"
+  // is only its byname (Beiname), not the legal name.
   name: "Münchner Erasmus Studenten Assoziation (MESA) e.V.",
   shortName: "MESA e.V.",
+  byname: "ESN MESA München",
   address: [
     "c/o Referat Internationale Angelegenheiten",
     "Geschwister-Scholl-Platz 1",
@@ -17,11 +20,12 @@ export const ASSOCIATION = {
     de: "Büro: Schellingstraße 7, Raum 012, 80799 München – Sprechstunde dienstags 18:00–19:30 Uhr",
     en: "Office: Schellingstraße 7, room 012, 80799 Munich – office hours Tuesdays 18:00–19:30",
   },
-  // Board members authorised to represent the association (§ 26 BGB).
+  // The board (§ 26 BGB): two equal chairs and a treasurer; any two of them
+  // represent the association together (Satzung).
   board: [
-    { name: "Luis Pardo de la Puente", de: "Erster Vorstand", en: "First chair" },
-    { name: "Tim Burgtorf", de: "Zweiter Vorstand", en: "Second chair" },
-    { name: "Zubenil Mandal", de: "Schatzmeister", en: "Treasurer" },
+    { name: "Luis Pardo de la Puente", de: "Vorsitz", en: "Chair" },
+    { name: "Tim Burgtorf", de: "Vorsitz", en: "Chair" },
+    { name: "Zubenil Mandal", de: "Kassier", en: "Treasurer" },
   ],
   registerCourt: "Amtsgericht München",
   registerNumber: "VR 200385",

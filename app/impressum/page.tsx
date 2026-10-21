@@ -12,6 +12,7 @@ export default function ImpressumPage() {
     <LegalPage title="Impressum / Legal notice" lang="de">
       <H2>Angaben gemäß § 5 DDG</H2>
       <Address lines={[ASSOCIATION.name, ...ASSOCIATION.address]} />
+      <p>Beiname / Also known as: {ASSOCIATION.byname}</p>
 
       <H2>Vertreten durch den Vorstand / Represented by the board</H2>
       <p>
@@ -21,6 +22,10 @@ export default function ImpressumPage() {
             {i < ASSOCIATION.board.length - 1 && <br />}
           </span>
         ))}
+      </p>
+      <p>
+        Je zwei Vorstandsmitglieder vertreten den Verein gemeinsam. / Any two board members
+        represent the association jointly.
       </p>
 
       <H2>Registereintrag / Register entry</H2>

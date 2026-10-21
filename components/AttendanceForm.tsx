@@ -15,6 +15,7 @@ import {
   saveDetails,
   type SavedDetails,
 } from "@/lib/savedDetails";
+import { ASSOCIATION, DATA_PROTECTION_OFFICER, RETENTION_YEARS } from "@/lib/legal";
 import type { PublicEvent } from "@/types";
 
 const UNIVERSITIES = ["LMU", "TUM", "Other"] as const;
@@ -510,19 +511,25 @@ export default function AttendanceForm({ event, kiosk }: Props) {
               )}
             </div>
 
-            {/* Art. 13 GDPR: the privacy notice at the point of collection. A new
-                tab, so the entered details (or the kiosk form) stay. */}
-            <p className="text-xs text-gray-500">
-              Your details are stored as MESA e.V.&apos;s attendance list.{" "}
-              <a href="/privacy" target="_blank" rel="noopener" className="text-esn underline">
-                How we handle your data
-              </a>{" "}
-              (
-              <a href="/datenschutz" target="_blank" rel="noopener" className="text-esn underline">
-                Datenschutz
-              </a>
-              )
-            </p>
+            {/* Art. 13 GDPR: the essentials at the point of collection; the full
+                notice is linked in the page footer. */}
+            <div className="rounded-md border border-gray-300 bg-gray-50 p-4 text-xs text-gray-700">
+              <p className="font-bold uppercase tracking-wide mb-1">Data protection</p>
+              <p>
+                {ASSOCIATION.shortName} stores your details and signature as the attendance list
+                of this event, to document who took part and to prove it to the bodies that fund
+                our events. Only MESA organisers can see them, and they are deleted at the end of
+                the {RETENTION_YEARS}th year after the event. You can ask for access or deletion
+                at{" "}
+                <a href={`mailto:${DATA_PROTECTION_OFFICER.email}`} className="text-esn underline">
+                  {DATA_PROTECTION_OFFICER.email}
+                </a>
+                .
+              </p>
+              <p className="mt-2">
+                Details: privacy notice (Datenschutzerklärung), linked at the bottom of this page.
+              </p>
+            </div>
 
             <button
               type="submit"
