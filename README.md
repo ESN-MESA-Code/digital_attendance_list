@@ -135,6 +135,32 @@ Deploy to [Vercel](https://vercel.com) or any Node.js-compatible host. Make sure
 
 ---
 
+## Testing
+
+| Command            | What it checks                                                                 | Needs              |
+| ------------------ | ------------------------------------------------------------------------------ | ------------------ |
+| `npm test`         | Signature encoder, PDF export, CSV escaping, auth helpers, countries, cookies | nothing            |
+| `npm run test:db`  | Row Level Security, `get_public_event`, storage bucket, signup trigger, realtime | local Supabase     |
+| `npm run test:e2e` | Public form (desktop + phone), kiosk, dashboard, exports, access control      | local Supabase     |
+
+The database and end-to-end tests run against a local Supabase stack built from
+`supabase/migrations` plus `supabase/seed.sql` (test organisers that sign in with a
+password, since Google sign-in is unavailable locally). It needs Docker or Podman:
+
+```bash
+npm run supabase:start   # first run downloads the images
+npm run test:db
+npx playwright install chromium   # once
+npm run test:e2e         # starts the app on port 3100 with the local keys
+npm run supabase:stop
+```
+
+After changing a migration or the seed, run `npx supabase@2.121.0 db reset` to rebuild the
+local database. The **Tests** GitHub workflow runs all of this on every pull request, so a
+migration that weakens the privacy rules fails there before it reaches `main`.
+
+---
+
 ## Workflow
 
 1. **Organiser** signs in with their esnmesa.org Google account, opens `/dashboard/events` and creates an event.

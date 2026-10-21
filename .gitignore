@@ -12,6 +12,12 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+
+# local Supabase stack
+/supabase/.branches/
+/supabase/.temp/
 
 # next.js
 /.next/
