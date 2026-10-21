@@ -1,5 +1,6 @@
-// Privacy: events and their sign-ins are deleted at the end of the tenth
-// calendar year after the event, as the privacy notice promises.
+// Privacy: events and their sign-ins are deleted at the end of the fifth
+// calendar year after the event, as the privacy notice promises; organisers' IP
+// addresses in Supabase Auth are removed after 30 days.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   admin,
@@ -21,10 +22,10 @@ let expired: TestEvent;
 let kept: TestEvent;
 
 beforeAll(async () => {
-  // The last day of the eleventh year back is past retention; the first day
-  // of the tenth year back is kept until that year's end plus ten years.
-  expired = await createEvent(undefined, null, { event_date: yearsBefore(10, -1) });
-  kept = await createEvent(undefined, null, { event_date: yearsBefore(10, 0) });
+  // The last day of the sixth year back is past retention; the first day of
+  // the fifth year back is kept until the end of this year.
+  expired = await createEvent(undefined, null, { event_date: yearsBefore(5, -1) });
+  kept = await createEvent(undefined, null, { event_date: yearsBefore(5, 0) });
   const { error } = await admin
     .from("participants")
     .insert(participantRow(expired.id, await sampleSignature()));
@@ -55,5 +56,24 @@ describe("delete_expired_events()", () => {
       .select("id")
       .eq("event_id", expired.id);
     expect(participants).toEqual([]);
+  });
+});
+
+describe("purge_auth_ip_addresses()", () => {
+  it("cannot be called by visitors or organisers", async () => {
+    const organiser = await clientAs((await organiserSession()).access_token);
+    for (const client of [anonClient(), organiser]) {
+      const { error } = await client.rpc("purge_auth_ip_addresses");
+      expect(error?.code).toBe("42501");
+    }
+  });
+
+  it("runs for the scheduled job and signs nobody out", async () => {
+    const session = await organiserSession();
+    const { error } = await admin.rpc("purge_auth_ip_addresses");
+    expect(error).toBeNull();
+    const organiser = await clientAs(session.access_token);
+    const { error: readError } = await organiser.from("events").select("id").limit(1);
+    expect(readError).toBeNull();
   });
 });

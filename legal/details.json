@@ -20,9 +20,9 @@
     "login": "Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland"
   },
   "retention": {
-    "years": 10,
+    "years": 5,
     "example_event_year": 2026,
-    "example_deletion_year": 2036
+    "example_deletion_year": 2031
   },
   "notice_version": "2026-10-21",
   "as_of": {

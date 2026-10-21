@@ -60,6 +60,11 @@ test("kiosk mode records sign-ins under the organiser and starts over", async ({
   await page.getByRole("link", { name: "Sign in on this device" }).click();
   await expect(page).toHaveURL(`/kiosk/${event.id}`);
   await expect(page.getByText(`Signed in as ${ORGANISER.email}`)).toBeVisible();
+  // Shared device: the browser must not remember earlier participants' names
+  await expect(page.locator("form")).toHaveAttribute("autocomplete", "off");
+  for (const name of ["first_name", "last_name"]) {
+    await expect(page.locator(`input[name="${name}"]`)).toHaveAttribute("autocomplete", "off");
+  }
 
   await fillForm(page, { firstName: "Kiosk", lastName: "Person" });
   await acceptSignAndSubmit(page);

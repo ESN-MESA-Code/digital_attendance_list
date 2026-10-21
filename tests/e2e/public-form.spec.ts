@@ -1,4 +1,5 @@
 // The public attendance form participants open from the QR code.
+import type { Page } from "@playwright/test";
 import { NOTICE_VERSION } from "../../lib/legal";
 import { admin, signOffEvent } from "../helpers/local";
 import { decodeGreyPng, sampleSignature } from "../helpers/png";
@@ -153,22 +154,25 @@ test("an unknown or guessed token shows 'Event not found'", async ({ page, event
   }
 });
 
-const COOKIE = "mesa_attendance_details";
+const STORAGE_KEY = "mesa_attendance_details";
+
+/** The details saved in this browser's localStorage, or undefined. */
+async function savedDetails(page: Page) {
+  const raw = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
+  return raw ? (JSON.parse(raw) as { savedAt: number; details: Record<string, string> }).details : undefined;
+}
 
 test("remembers details only after an explicit yes, never the signature", async ({ page, context, event }) => {
-  const savedCookie = async () => (await context.cookies()).find((c) => c.name === COOKIE);
-
   await page.goto(`/event/${event.public_token}`);
   await fillForm(page, { firstName: "Jean", lastName: "Dupont" });
   await acceptSignAndSubmit(page);
   await expect(page.getByText("Save your details for next time?")).toBeVisible();
 
   // Nothing is stored until they agree
-  expect(await savedCookie()).toBeUndefined();
+  expect(await savedDetails(page)).toBeUndefined();
 
   await page.getByRole("button", { name: "Save my details" }).click();
-  const cookie = (await savedCookie())!;
-  expect(JSON.parse(decodeURIComponent(cookie.value))).toEqual({
+  expect(await savedDetails(page)).toEqual({
     first_name: "Jean",
     last_name: "Dupont",
     nationality: "IT",
@@ -176,7 +180,9 @@ test("remembers details only after an explicit yes, never the signature", async 
     exchange_program: "Erasmus+",
     esn_card: "yes",
   });
-  expect(cookie.value).not.toContain("data%3Aimage");
+  expect(JSON.stringify(await savedDetails(page))).not.toContain("data:image");
+  // Kept on the device only: no cookie that would travel to the server.
+  expect((await context.cookies()).find((c) => c.name === STORAGE_KEY)).toBeUndefined();
 
   // Next event: pre-filled, but signature still required
   await page.goto(`/event/${event.public_token}`);
@@ -186,24 +192,24 @@ test("remembers details only after an explicit yes, never the signature", async 
 
   // Asked again – the changed name is not saved by default
   await expect(page.getByText("Keep your details saved for next time?")).toBeVisible();
-  expect(JSON.parse(decodeURIComponent((await savedCookie())!.value)).first_name).toBe("Jean");
+  expect((await savedDetails(page))?.first_name).toBe("Jean");
 
   // Saying no withdraws the earlier consent
   await page.getByRole("button", { name: "No, thanks" }).click();
-  expect(await savedCookie()).toBeUndefined();
+  expect(await savedDetails(page)).toBeUndefined();
   await page.goto(`/event/${event.public_token}`);
   await expect(page.locator('input[name="first_name"]')).toHaveValue("");
 });
 
-test("saying no the first time stores nothing", async ({ page, context, event }) => {
+test("saying no the first time stores nothing", async ({ page, event }) => {
   await page.goto(`/event/${event.public_token}`);
   await fillForm(page);
   await acceptSignAndSubmit(page);
   await page.getByRole("button", { name: "No, thanks" }).click();
-  expect((await context.cookies()).find((c) => c.name === COOKIE)).toBeUndefined();
+  expect(await savedDetails(page)).toBeUndefined();
 });
 
-test("saved details can be removed from the form without signing in", async ({ page, context, event }) => {
+test("saved details can be removed from the form without signing in", async ({ page, event }) => {
   await page.goto(`/event/${event.public_token}`);
   await fillForm(page);
   await acceptSignAndSubmit(page);
@@ -212,7 +218,7 @@ test("saved details can be removed from the form without signing in", async ({ p
   await page.goto(`/event/${event.public_token}`);
   await page.getByRole("button", { name: "Not you? Remove saved details" }).click();
   await expect(page.locator('input[name="first_name"]')).toHaveValue("");
-  expect((await context.cookies()).find((c) => c.name === COOKIE)).toBeUndefined();
+  expect(await savedDetails(page)).toBeUndefined();
 });
 
 test("a sign-off while the form is open closes it on submit", async ({ page, event }) => {

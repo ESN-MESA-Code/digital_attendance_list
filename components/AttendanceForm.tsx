@@ -111,10 +111,10 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
     if (isKiosk) return;
     const saved = loadSavedDetails();
     if (saved) {
-      // Values come from a cookie – anything invalid is caught by validation on submit.
+      // Values come from browser storage – anything invalid is caught by validation on submit.
       reset({
         ...saved,
-        // Cookies saved before codes were used hold a country name.
+        // Details saved before codes were used hold a country name.
         nationality: isCountryCode(saved.nationality)
           ? saved.nationality
           : (matchCountry(saved.nationality) ?? ""),
@@ -245,7 +245,7 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
               </h3>
               <p className="text-xs text-gray-500 mt-1">
                 We can store your name, nationality, university, exchange programme and
-                ESNcard status in a cookie on this device, so the form is filled in
+                ESNcard status in this browser on this device, so the form is filled in
                 automatically at the next event. Your signature is not saved.
                 {usedSaved
                   ? " “No, thanks” removes the details saved earlier."
@@ -349,7 +349,12 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
           )}
 
           {/* Hidden, not unmounted, while signing: "Back" finds every answer as left. */}
-          <form onSubmit={handleSubmit(goToSignature)} className="space-y-4" hidden={step !== "form"}>
+          <form
+            onSubmit={handleSubmit(goToSignature)}
+            className="space-y-4"
+            hidden={step !== "form"}
+            autoComplete={isKiosk ? "off" : undefined}
+          >
             <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Step 1 of 2 · Your details</p>
             {/* Name */}
             <div className="grid grid-cols-2 gap-3">
@@ -360,7 +365,8 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
                 <input
                   {...register("first_name")}
                   type="text"
-                  autoComplete="given-name"
+                  // Kiosk: the browser must not remember (and suggest) earlier participants.
+                  autoComplete={isKiosk ? "off" : "given-name"}
                   className={inputClass}
                 />
                 {errors.first_name && (
@@ -374,7 +380,7 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
                 <input
                   {...register("last_name")}
                   type="text"
-                  autoComplete="family-name"
+                  autoComplete={isKiosk ? "off" : "family-name"}
                   className={inputClass}
                 />
                 {errors.last_name && (

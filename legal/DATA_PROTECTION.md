@@ -36,8 +36,8 @@ digital attendance list instead of a paper one:
 3. The organiser sees the list live, signs it off after the event (with their own
    signature), exports it as PDF/CSV, prints the PDF and files it in the office folder.
 
-The lists document attendance, prove to funding bodies (e.g. "Lokale Erasmus+
-Initiativen") that funded events took place and who took part, and feed anonymous
+The lists document attendance, prove to the bodies that fund the association (e.g. "Lokale
+Erasmus+ Initiativen") that its events took place and who took part, and feed anonymous
 statistics (participants per university, country, ESNcard) for reports.
 
 ---
@@ -55,9 +55,9 @@ statistics (participants per university, country, ESNcard) for reports.
 | Legal basis | **Legitimate interest**, Art. 6(1)(f) GDPR, for the list, the proof towards funders and anonymous statistics (balancing test in section 2.1a); **performance of the participation agreement**, Art. 6(1)(b) GDPR, for the acceptance of the disclaimer. No consent checkbox. Information in [`form-data-processing.en.md`](form-data-processing.en.md) on the form ([`components/AttendanceForm.tsx`](../components/AttendanceForm.tsx)) |
 | Proof of information (Art. 5(2)) | Each row stores `notice_version` (the date of the notice shown, `notice_version` in [`details.json`](details.json)) and `created_at`; the database refuses new rows without a version ([migration](../supabase/migrations/20261021001000_legitimate_interest.sql)). Rows from 21 October 2026 created before that migration agreed to the consent text of that date |
 | Obligation to provide | None by law. Needed for the attendance list; whoever does not want to sign in digitally can sign a paper list (same legal basis) |
-| Objection (Art. 21) | By email to info@esnmesa.org; the entry is deleted unless it is still needed as proof for a funded event that a funder may audit – then it is deleted when that period ends, and the person is told (procedure in section 6) |
+| Objection (Art. 21) | By email to info@esnmesa.org; the entry is deleted unless it is still needed for the year's report to funders – then it is deleted once that report is done, and the person is told (procedure in section 6) |
 | Recipients | MESA organisers (Workspace accounts); funding bodies / auditors on request (printed or exported list); processors in section 4 |
-| Retention | Until the end of the 10th calendar year after the event, then deleted automatically (section 5); earlier after a successful objection |
+| Retention | Until the end of the fifth calendar year after the event, then deleted automatically (section 5); earlier after a successful objection |
 | Special categories (Art. 9) | None. Nationality is not an Art. 9 category. Signatures are stored as static images only (no pressure, speed or stroke timing) and are not used for biometric identification |
 
 Rows from before 21 October 2026 have `notice_version = null`. At that time the form
@@ -67,8 +67,8 @@ showed a short data protection notice; they rest on the same legitimate interest
 
 | | |
 | --- | --- |
-| Our interest | MESA finances events with grants (e.g. "Lokale Erasmus+ Initiativen") and must prove that funded events took place and who took part; without signed lists funds can be reclaimed. Also documenting the acceptance of the disclaimer and planning events from anonymous statistics |
-| Necessity | A signed attendance list is the usual proof funders ask for. Only fields the list or its statistics need are collected (no contact data). **Nationality** is necessary only if a funder asks for it per person – see open point 11 |
+| Our interest | MESA is financed by grants to the association (e.g. "Lokale Erasmus+ Initiativen") and must prove to its funders that its events take place and who takes part; without signed lists funding can be lost or reclaimed. Also documenting the acceptance of the disclaimer and planning events from anonymous statistics |
+| Necessity | A signed attendance list is the usual proof funders ask for. The funders' attendance-list template asks for **nationality, university, exchange programme and ESNcard status per person**, so these fields are required. Nothing else is collected (no contact data) |
 | Participants' interests | Names and signatures could be misused if leaked (forgery, identity fraud); nationality could reveal origin. Participants reasonably expect an attendance list at a funded event |
 | Safeguards | Only Workspace organisers can read sign-ins (enforced by RLS); participants never see each other's entries; signatures as small images only; fixed retention with automatic deletion; no use for marketing; right to object at any time; measures in section 7 |
 | Result | The interests of the association prevail. Reassess if the purpose, the fields or the circle of recipients change |
@@ -76,15 +76,15 @@ showed a short data protection notice; they rest on the same legitimate interest
 Why not consent: people who declined were still noted on paper (so the processing did not
 depend on consent), and a withdrawal would delete exactly the proof the list exists for.
 
-### 2.2 "Save my details" cookie (participants, optional)
+### 2.2 "Save my details" (participants, optional)
 
 | | |
 | --- | --- |
 | Data | Name, nationality, university, exchange programme, ESNcard status – **not** the signature |
-| Where | Only in the participant's browser (cookie `mesa_attendance_details`, 12 months, `SameSite=Lax`, `Secure` on HTTPS). Not stored on the server ([`lib/savedDetails.ts`](../lib/savedDetails.ts)) |
+| Where | Only in the participant's browser: `localStorage`, key `mesa_attendance_details`, ignored and removed after 12 months. Unlike a cookie it is never sent to the server ([`lib/savedDetails.ts`](../lib/savedDetails.ts)). Details saved in the cookie of earlier versions are moved over and the cookie deleted on the next visit |
 | Purpose | Pre-filling the form at the next event |
-| Legal basis | Consent, § 25(1) TDDDG and Art. 6(1)(a) GDPR: only set after clicking "Save my details" on the thank-you screen |
-| Withdrawal | "No, thanks", "Not you? Remove saved details" or "Remove them" deletes the cookie; or deleting cookies in the browser |
+| Legal basis | Consent, § 25(1) TDDDG (storage on the device, cookie or not) and Art. 6(1)(a) GDPR: only saved after clicking "Save my details" on the thank-you screen |
+| Withdrawal | "No, thanks", "Not you? Remove saved details" or "Remove them" deletes the details; or deleting the site data in the browser |
 | Kiosk | Never offered and never pre-filled on organiser devices (shared device) |
 
 ### 2.3 Organiser accounts and actions
@@ -92,12 +92,12 @@ depend on consent), and a withdrawal would delete exactly the proof the list exi
 | | |
 | --- | --- |
 | Data subjects | MESA members acting as organisers |
-| Data | From Google: name, email, profile picture URL, account ID (in Supabase Auth); session cookies; in events: creator email, sign-off (time, email, handwritten signature), filed-in-office (time, email), kiosk sign-ins recorded (email) |
+| Data | From Google: name, email, profile picture URL, account ID (in Supabase Auth); session cookies; IP address and user agent of logins (Supabase Auth: `auth.audit_log_entries`, `auth.sessions`); in events: creator email, sign-off (time, email, handwritten signature), filed-in-office (time, email), kiosk sign-ins recorded (email) |
 | Purpose | Secure access to the dashboard; accountability for each list |
 | Legal basis | Legitimate interest, Art. 6(1)(f) GDPR (and the membership relationship) |
 | Cookies | Supabase session cookies, strictly necessary – § 25(2) No. 2 TDDDG, no consent |
 | Third party | The profile picture is loaded from Google's servers (`referrerpolicy="no-referrer"`), so Google sees the organiser's IP address |
-| Retention | Event-related data as long as the event (section 5); Auth accounts until removed by an admin |
+| Retention | Event-related data as long as the event (section 5); login IP addresses and user agents 30 days (nightly job, section 5); Auth accounts are deleted by an admin when the person leaves the organiser role |
 
 ### 2.4 Hosting and technical logs
 
@@ -106,7 +106,7 @@ depend on consent), and a withdrawal would delete exactly the proof the list exi
 | Data | IP address, time, requested URL, user agent – processed by Vercel and Supabase in their logs |
 | Purpose | Delivering the app, security, error analysis |
 | Legal basis | Legitimate interest, Art. 6(1)(f) GDPR |
-| Retention | Providers' log retention (short, plan-dependent); the app itself stores no IP addresses |
+| Retention | Providers' log retention (short, plan-dependent). The app's database stores no participant IP addresses; organisers' login IPs see section 2.3 |
 
 ### 2.5 Exports and printed lists
 
@@ -148,7 +148,7 @@ token through `get_public_event()`, which does not return organiser names.
 
 | Processor | Role | Location of data | Transfer safeguard |
 | --- | --- | --- | --- |
-| Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA | Hosting of the app (functions in an EU region) | EU; CDN edge may serve from the nearest location | Vercel DPA with EU standard contractual clauses; EU–US Data Privacy Framework where certified |
+| Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA | Hosting of the app (functions pinned to Frankfurt, `fra1`, in [`vercel.json`](../vercel.json)) | EU; CDN edge may serve from the nearest location | Vercel DPA with EU standard contractual clauses; EU–US Data Privacy Framework where certified |
 | Supabase Inc., 970 Toa Payoh North #07-04, Singapore 318992 | Database, authentication, realtime | AWS eu-central-1 (Frankfurt) | Supabase DPA with standard contractual clauses (support access from third countries) |
 | Google Ireland Limited, Gordon House, Barrow Street, Dublin 4 | Organiser login (Google Workspace) | EU / Google infrastructure | Google Workspace data processing terms; DPF for transfers to Google LLC |
 
@@ -167,17 +167,21 @@ protection documents as evidence (Art. 5(2)).
 
 | What | When deleted | How |
 | --- | --- | --- |
-| Events and their sign-ins | End of the 10th calendar year after the event (event in 2026 → 31 Dec 2036) | Nightly `pg_cron` job `delete-expired-events` (03:30 UTC) runs `public.delete_expired_events()`; participants are deleted with their event (`on delete cascade`) ([migration](../supabase/migrations/20261021000800_retention.sql), tested in [`tests/db/retention.test.ts`](../tests/db/retention.test.ts)) |
-| A single sign-in after an objection | Promptly after the request, or when no funder can audit the event any more (section 2.1) | Manually by an admin (section 6) |
-| Events deleted early | Any time | Organisers can delete an event in the app; its sign-ins go with it |
-| Saved-details cookie | After 12 months, or when the participant removes it | Browser |
+| Events and their sign-ins | End of the fifth calendar year after the event (event in 2026 → 31 Dec 2031) | Nightly `pg_cron` job `delete-expired-events` (03:30 UTC) runs `public.delete_expired_events()`; participants are deleted with their event (`on delete cascade`) ([job](../supabase/migrations/20261021000800_retention.sql), [period](../supabase/migrations/20261021001100_retention_five_years.sql), tested in [`tests/db/retention.test.ts`](../tests/db/retention.test.ts)) |
+| Organisers' login IP addresses and user agents | After 30 days | Nightly `pg_cron` job `purge-auth-ip-addresses` (03:45 UTC) deletes older `auth.audit_log_entries` and clears `ip`/`user_agent` of older `auth.sessions` ([migration](../supabase/migrations/20261021001300_purge_auth_ip_addresses.sql)) |
+| A single sign-in after an objection | Promptly after the request, or once the year's report to funders is done (section 2.1) | Manually by an admin (section 6) |
+| Events deleted early | Any time | Only by an admin in SQL; its sign-ins go with it. The API refuses deletes of events and sign-ins for everyone, so a list – the proof that an event took place – cannot be destroyed from an organiser session ([migration](../supabase/migrations/20261021001200_no_event_deletes.sql)) |
+| Saved details | After 12 months, or when the participant removes them | Browser |
 | Printed lists | Same time as the digital ones | Organisational – office folder (open point 4) |
 | Downloaded PDF/CSV files | – | On organisers' devices, not controlled by the app (open point 5) |
 | Supabase backups | Per Supabase plan (daily backups, limited retention) | Provider |
 
-Why 10 years: funders may ask for the lists as proof of the use of funds. (Tax law
-requires 8 years for accounting receipts since 2025; if no funder needs 10, the period
-can be shortened in `details.json` plus a new migration for the deletion job.)
+Why five years: the lists are supporting documents for the reports to funders, and grant
+terms (e.g. those incorporating ANBest-P) usually require keeping such documents for five
+years after the report. Keep them longer only if a grant agreement sets a longer period, or
+if a list becomes an accounting record (e.g. supporting an expense) – those are kept 8 years
+under tax law (§ 147 AO). Changing the period needs
+`details.json` plus a new migration for the deletion job.
 
 ---
 
@@ -187,7 +191,7 @@ Requests reach info@esnmesa.org. Answer within one month (Art. 12(3)).
 Verify the requester's identity sensibly (e.g. reply from the address they used, or ask
 which events they attended) – the app stores no contact data.
 
-Run in the Supabase dashboard → SQL editor (service role):
+Run in the Supabase dashboard → SQL editor (service role) – the API refuses deletes:
 
 ```sql
 -- Access (Art. 15): all sign-ins of a person
@@ -196,8 +200,8 @@ from participants p join events e on e.id = p.event_id
 where lower(p.first_name) = lower('Erika') and lower(p.last_name) = lower('Mustermann')
 order by e.event_date;
 
--- Objection / erasure (Art. 21, 17): delete those rows – unless the event was funded
--- and a funder may still audit it; then tell the person, restrict use and delete later
+-- Objection / erasure (Art. 21, 17): delete those rows – unless they are still needed
+-- for this year's report to funders; then tell the person, restrict use and delete later
 delete from participants where id in ('<id>', '<id>');
 
 -- Rectification (Art. 16)
@@ -205,8 +209,23 @@ update participants set last_name = 'Musterfrau' where id = '<id>';
 ```
 
 After a deletion, also remove the person from the printed list in the office folder
-(black out) and tell organisers to delete old exports. Portability (Art. 20): export the
-query result as CSV.
+(black out) and tell organisers to delete old exports. Deleted rows remain in Supabase's
+backups until these rotate out; they are not restored from there. Portability (Art. 20) applies only
+to data processed on contract or consent – here name and signature as acceptance of the
+disclaimer (Art. 6(1)(b)); export those columns of the query result as CSV. The saved details
+(consent) are on the participant's own device.
+
+### 6a. Data breaches (Art. 33, 34)
+
+E.g. a leaked service role key, a lost unlocked organiser device, a lost printed list.
+
+1. Whoever notices it tells the board at once (info@esnmesa.org); stop the leak (rotate the
+   key, sign the account out, …).
+2. The board reports it to BayLDA within **72 hours** of becoming aware
+   (online form on lda.bayern.de), unless it is unlikely to put anyone at risk.
+3. If the risk is high (e.g. signatures exposed), also inform the participants affected.
+4. Note every breach – facts, effects, measures, and why it was or was not reported – in
+   the association's breach log, even if not reported (Art. 33(5)).
 
 ---
 
@@ -218,7 +237,13 @@ query result as CSV.
   [`lib/auth.ts`](../lib/auth.ts), [`proxy.ts`](../proxy.ts)) and again in the database.
 - Row Level Security on all tables: anyone may **insert** a sign-in, nobody but Workspace
   members may **read** participants, nobody may update participant rows; events are
-  readable by Workspace members only. A trigger rejects sign-ups from other domains.
+  readable by Workspace members only. Nobody may **delete** events or sign-ins through the
+  API – only the retention job and admins in SQL. A trigger rejects sign-ups from other domains.
+- Need-to-know: every `@esnmesa.org` account belongs to a member of the association who
+  organises events and signed the confidentiality commitment (below), so all of them may
+  read all lists; organisers regularly cover each other's events. Accounts are only given
+  to such members and removed when they leave. Revisit if accounts are ever given to
+  people who do not organise events.
 - Signed-off events accept no further sign-ins (enforced in the database).
 - The service role key is used only server-side in the export routes and kept only in
   the hosting environment (never in the repository or logs); it is rotated if it may have
@@ -250,9 +275,12 @@ query result as CSV.
 
 **Data minimisation and privacy by default**
 - No email or contact data from participants; no tracking, analytics or ads; no external
-  fonts or scripts. The saved-details cookie is opt-in and never holds the signature.
+  fonts or scripts. Saved details are opt-in, stay in the browser (never sent to the
+  server) and never hold the signature.
 - Signatures are reduced to a tiny 2-bit greyscale image.
-- Kiosk mode never stores or pre-fills anyone's details; the form resets after each person.
+- Kiosk mode never stores or pre-fills anyone's details, and tells the browser not to
+  remember entered names (`autocomplete="off"`); the form resets after each person.
+- Organisers' login IP addresses are removed after 30 days (section 5).
 
 **Organisational rules for organisers**
 - Delete downloaded PDF/CSV files from your device once the list is printed and filed;
@@ -260,6 +288,11 @@ query result as CSV.
 - Keep the office folder with printed lists locked; destroy printed lists with the
   digital ones at the end of the retention period (shredder or data protection bin).
 - Carry a paper list for participants who do not want to sign in digitally.
+- **Kiosk mode (signing in on your device):** your device is signed in to the organiser
+  area, so anyone holding it can leave the form and see every attendance list. Never leave
+  the device alone with a participant – stay next to them while they sign in. Where possible
+  pin the browser to the form (Android: app pinning; iPhone/iPad: Guided Access) and lock the
+  device when you put it down.
 - Organisers confirm in writing that they keep participants' data confidential
   (Verpflichtung auf Vertraulichkeit) before getting an `@esnmesa.org` account.
 
@@ -285,7 +318,7 @@ query result as CSV.
 
 Assessment: **not required.** No special categories, no profiling or automated decisions,
 no systematic monitoring, no new technologies with high risk, moderate scale (a few
-thousand sign-ins a year). The processing is not on the BayLDA list of operations that
+thousand sign-ins a year, kept for five years). The processing is not on the BayLDA list of operations that
 require a DPIA. Main risk – exposure of names and signatures – is mitigated by the
 measures in section 7.
 
@@ -323,7 +356,9 @@ info@esnmesa.org, named in the privacy notice and Impressum.
    the office routine.
 5. **Organisational rules** (section 7): tell all organisers, collect the
    confidentiality commitments.
-6. **Retention period:** confirm 10 years is needed by a funder (otherwise 8 or less).
+6. **Retention period** (set to five years, 21 October 2026): confirm it against the grant
+   agreements (e.g. LEI), and check whether lists are ever used as accounting records
+   (8 years). If so, lengthen it.
 7. **DPO removed** (section 9a): if a DPO was ever reported to BayLDA, withdraw that
    report; recount the people processing personal data each year and appoint a DPO
    once there are 20 or more.
@@ -333,10 +368,10 @@ info@esnmesa.org, named in the privacy notice and Impressum.
    contact form would be safer under § 5 DDG.
 10. **esnmesa.org Impressum** lacks board and register entry and links the discontinued
     EU ODR platform.
-11. **Nationality:** check whether the funders' attendance-list template or funding terms
-    ask for nationality per person. If yes, keep the field required and name that in the
-    privacy notice; if only totals are needed, or not at all, remove the field (an
-    optional field would not be "necessary" under Art. 6(1)(f) and would need consent).
+11. **Nationality and the other statistics fields:** resolved – the funders'
+    attendance-list template asks for them per person (named in the privacy notice).
+    Keep a copy of the template with the data protection documents as evidence, and
+    remove a field if a new template no longer asks for it.
 12. **Two-factor authentication:** enforce it in the Google Workspace admin console and
     check it on the Supabase, Vercel and GitHub accounts with access (section 7).
 13. **Minors:** the disclaimer assumes every participant is of full age. If minors may
