@@ -236,19 +236,27 @@ export default function EventDetailPage() {
                 {event.filed_at && (
                   <span className="text-xs text-gray-500">{formatFiled(event).replace(/^Filed in the office /, "")}</span>
                 )}
-                {event.signed_off_at ? (
+                {event.filed_at ? (
                   <button
                     onClick={toggleFiled}
-                    className={
-                      event.filed_at
-                        ? "text-xs text-gray-500 hover:underline"
-                        : "text-sm font-medium text-green-700 hover:underline"
-                    }
+                    className="border border-gray-300 bg-white text-gray-600 text-sm px-3 py-1 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    {event.filed_at ? "Undo" : "✓ Mark as filed"}
+                    Undo
                   </button>
                 ) : (
-                  <span className="text-xs text-gray-400">Can be filed after the sign-off.</span>
+                  <>
+                    <button
+                      onClick={toggleFiled}
+                      disabled={!event.signed_off_at}
+                      title={event.signed_off_at ? undefined : "Sign the event off before filing it"}
+                      className="bg-green-600 text-white text-sm px-3.5 py-1.5 rounded-lg shadow-sm enabled:hover:bg-green-700 transition-colors disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
+                    >
+                      ✓ Mark as filed
+                    </button>
+                    {!event.signed_off_at && (
+                      <span className="text-xs text-gray-400">Possible after the sign-off.</span>
+                    )}
+                  </>
                 )}
               </div>
             </div>
