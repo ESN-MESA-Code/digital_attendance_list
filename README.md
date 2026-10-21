@@ -145,3 +145,4 @@ unique(event_id, email)
 
 MIT
 # digital_attendance_list
+# digital_attendance_list
