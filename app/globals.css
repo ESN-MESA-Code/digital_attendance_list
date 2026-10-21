@@ -8,18 +8,15 @@
    Green:    #7AC143  (ESN green)
    Magenta:  #EC008C  (ESN magenta)
 ──────────────────────────────────────────────────────────────────────────── */
-@theme {
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
   --color-esn: #2E3192;
   --color-esn-dark: #252780;
   --color-esn-accent: #00AEEF;
   --color-esn-orange: #F47920;
   --color-esn-green: #7AC143;
   --color-esn-magenta: #EC008C;
-}
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
 }
 
 body {
