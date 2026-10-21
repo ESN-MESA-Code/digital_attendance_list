@@ -54,7 +54,7 @@ export default function EventDetailPage() {
       : `/event/${event.public_token}`;
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10 space-y-6">
+    <main className="max-w-4xl mx-auto px-2 sm:px-4 py-6 sm:py-10 space-y-6">
       <div className="flex items-center gap-4 mb-2">
         <Link href="/dashboard/events" className="text-esn hover:underline text-sm">
           ← Events
@@ -98,8 +98,8 @@ export default function EventDetailPage() {
       </div>
 
       {/* Participants */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4 px-1 pt-1 sm:p-0">
           <h2 className="text-lg font-semibold">
             Participants{" "}
             <span className="text-gray-400 font-normal text-base">

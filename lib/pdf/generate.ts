@@ -314,11 +314,13 @@ function signatureBytes(dataUrl: string): Uint8Array | null {
   return Buffer.from(dataUrl.slice(SIGNATURE_PREFIX.length), "base64");
 }
 
-export async function generateAttendancePdf(
-  event: Event,
-  participants: Participant[],
-  lang: Lang = DEFAULT_EXPORT_LANG
-): Promise<Uint8Array> {
+/** Fonts and logo embedded once per document, shared by every event in it. */
+interface DocAssets {
+  fonts: Fonts;
+  logo: PDFImage | null;
+}
+
+async function createDocument(): Promise<{ pdfDoc: PDFDocument; assets: DocAssets }> {
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
 
@@ -334,7 +336,37 @@ export async function generateAttendancePdf(
   } catch {
     logo = null;
   }
+  return { pdfDoc, assets: { fonts, logo } };
+}
 
+export async function generateAttendancePdf(
+  event: Event,
+  participants: Participant[],
+  lang: Lang = DEFAULT_EXPORT_LANG
+): Promise<Uint8Array> {
+  return generateCombinedAttendancePdf([{ event, participants }], lang);
+}
+
+/** One PDF with each event's list in turn; every event starts on a new page. */
+export async function generateCombinedAttendancePdf(
+  lists: Array<{ event: Event; participants: Participant[] }>,
+  lang: Lang = DEFAULT_EXPORT_LANG
+): Promise<Uint8Array> {
+  const { pdfDoc, assets } = await createDocument();
+  for (const { event, participants } of lists) {
+    await appendEventPages(pdfDoc, assets, event, participants, lang);
+  }
+  return await pdfDoc.save();
+}
+
+/** Adds one event's attendance list (header page plus continuation pages). */
+async function appendEventPages(
+  pdfDoc: PDFDocument,
+  { fonts, logo }: DocAssets,
+  event: Event,
+  participants: Participant[],
+  lang: Lang
+): Promise<void> {
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   let rowTop = drawTableHeader(page, drawFirstPageHeader(page, event, fonts, logo), fonts);
 
@@ -426,6 +458,4 @@ export async function generateAttendancePdf(
 
     rowTop = bottom;
   }
-
-  return await pdfDoc.save();
 }

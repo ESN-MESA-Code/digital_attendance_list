@@ -5,7 +5,11 @@ import { expect, test } from "./fixtures";
 
 const someId = "00000000-0000-4000-8000-000000000000";
 const pages = ["/dashboard", "/dashboard/events", `/dashboard/events/${someId}`, `/kiosk/${someId}`];
-const apis = [`/api/export/event/${someId}/csv`, `/api/export/event/${someId}/pdf`];
+const apis = [
+  `/api/export/event/${someId}/csv`,
+  `/api/export/event/${someId}/pdf`,
+  `/api/export/events/pdf?ids=${someId}`,
+];
 
 test.describe("signed out", () => {
   for (const path of pages) {

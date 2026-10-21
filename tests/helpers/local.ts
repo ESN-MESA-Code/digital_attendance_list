@@ -71,8 +71,11 @@ export interface TestEvent {
   title: string;
 }
 
-/** Creates an event with a random token (as the service role). */
-export async function createEvent(title = `Test event ${crypto.randomUUID().slice(0, 8)}`) {
+/** Creates an event with a random token (as the service role, so no creator unless given). */
+export async function createEvent(
+  title = `Test event ${crypto.randomUUID().slice(0, 8)}`,
+  createdBy: string | null = null
+) {
   const { data, error } = await admin
     .from("events")
     .insert({
@@ -82,6 +85,7 @@ export async function createEvent(title = `Test event ${crypto.randomUUID().slic
       responsible_member: "Rita Responsible",
       lei_responsible: "Lea LEI",
       public_token: crypto.randomUUID().replace(/-/g, ""),
+      created_by: createdBy,
     })
     .select("id, public_token, title")
     .single();

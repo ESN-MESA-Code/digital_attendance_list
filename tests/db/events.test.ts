@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   ANON_KEY,
+  ORGANISER,
   SUPABASE_URL,
   anonClient,
   clientAs,
@@ -113,6 +114,33 @@ describe("changing events", () => {
     expect(upd.data ?? []).toEqual([]);
     const del = await outsider.from("events").delete().eq("id", event.id).select();
     expect(del.data ?? []).toEqual([]);
+  });
+
+  it("records the creating organiser's email in created_by", async () => {
+    const created = await organiser.from("events").insert(newEvent).select("id, created_by").single();
+    expect(created.error).toBeNull();
+    try {
+      expect(created.data!.created_by).toBe(ORGANISER.email);
+    } finally {
+      await deleteEvent(created.data!.id);
+    }
+  });
+
+  it("events created with the service role have no creator", async () => {
+    const { data } = await organiser.from("events").select("created_by").eq("id", event.id).single();
+    expect(data).toEqual({ created_by: null });
+  });
+
+  it("non-organisers cannot read events or their creators", async () => {
+    const created = await organiser.from("events").insert(newEvent).select("id").single();
+    try {
+      for (const client of [anon, outsider]) {
+        const { data } = await client.from("events").select("id, created_by").eq("id", created.data!.id);
+        expect(data ?? []).toEqual([]);
+      }
+    } finally {
+      await deleteEvent(created.data!.id);
+    }
   });
 
   it("organisers can create, edit and delete events", async () => {

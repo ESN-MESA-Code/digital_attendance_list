@@ -6,6 +6,8 @@ export interface Event {
   responsible_member: string | null;
   lei_responsible: string | null;
   public_token: string;
+  /** Email of the organiser who created the event (null for older events) */
+  created_by: string | null;
   created_at: string;
 }
 

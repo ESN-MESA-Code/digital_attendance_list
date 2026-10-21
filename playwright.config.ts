@@ -18,8 +18,8 @@ export default defineConfig({
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    // Participants sign on their phones: run the public form there too.
-    { name: "phone", use: { ...devices["Pixel 7"] }, testMatch: /public-form/ },
+    // Participants sign on their phones (public form); organisers check the list on theirs.
+    { name: "phone", use: { ...devices["Pixel 7"] }, testMatch: /public-form|participant-table/ },
   ],
   webServer: {
     // CI tests the production build; locally the dev server is quicker to start.

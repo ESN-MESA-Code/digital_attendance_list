@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { PDFDocument, PDFName, PDFRawStream } from "pdf-lib";
-import { generateAttendancePdf } from "@/lib/pdf/generate";
+import { generateAttendancePdf, generateCombinedAttendancePdf } from "@/lib/pdf/generate";
 import type { Event, Participant } from "@/types";
 import { sampleSignature } from "../helpers/png";
 
@@ -12,6 +12,7 @@ const event: Event = {
   responsible_member: "Rita Responsible",
   lei_responsible: "Lea LEI",
   public_token: "t",
+  created_by: null,
   created_at: "2026-10-01T00:00:00Z",
 };
 
@@ -69,5 +70,30 @@ describe("generateAttendancePdf", () => {
     ];
     const { imageCount } = await load(await generateAttendancePdf(event, people));
     expect(imageCount).toBe(logoImages);
+  });
+});
+
+describe("generateCombinedAttendancePdf", () => {
+  it("puts each event's pages one after another, each starting a new page", async () => {
+    const sig = await sampleSignature();
+    const other: Event = { ...event, id: "e2", title: "Pub crawl" };
+    const third: Event = { ...event, id: "e3", title: "Museum" };
+    const lists = [
+      { event, participants: [] },
+      // Two pages: more people than fit on the first page.
+      { event: other, participants: Array.from({ length: 40 }, (_, i) => participant(i, sig)) },
+      { event: third, participants: [participant(1, sig)] },
+    ];
+    const combined = await load(await generateCombinedAttendancePdf(lists, "en"));
+
+    // The same as the single exports back to back.
+    const singles = await Promise.all(
+      lists.map(async (l) => (await load(await generateAttendancePdf(l.event, l.participants))).doc.getPageCount())
+    );
+    expect(singles).toEqual([1, 2, 1]);
+    expect(combined.doc.getPageCount()).toBe(4);
+    // The logo is embedded once and shared; one image per signature.
+    const { imageCount: logoOnly } = await load(await generateCombinedAttendancePdf([{ event, participants: [] }]));
+    expect(combined.imageCount).toBe(logoOnly + 41);
   });
 });
