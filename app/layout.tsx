@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import LegalFooter from "@/components/LegalFooter";
 
 export const metadata: Metadata = {
   title: "MES Attendance",
@@ -13,8 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased bg-gray-50 min-h-screen font-sans">
-        {children}
+      <body className="antialiased bg-gray-50 min-h-screen font-sans flex flex-col">
+        <div className="flex-1">{children}</div>
+        <LegalFooter />
       </body>
     </html>
   );

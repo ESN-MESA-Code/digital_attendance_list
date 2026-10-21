@@ -510,6 +510,20 @@ export default function AttendanceForm({ event, kiosk }: Props) {
               )}
             </div>
 
+            {/* Art. 13 GDPR: the privacy notice at the point of collection. A new
+                tab, so the entered details (or the kiosk form) stay. */}
+            <p className="text-xs text-gray-500">
+              Your details are stored as MESA e.V.&apos;s attendance list.{" "}
+              <a href="/privacy" target="_blank" rel="noopener" className="text-esn underline">
+                How we handle your data
+              </a>{" "}
+              (
+              <a href="/datenschutz" target="_blank" rel="noopener" className="text-esn underline">
+                Datenschutz
+              </a>
+              )
+            </p>
+
             <button
               type="submit"
               className="w-full bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark transition-colors"
