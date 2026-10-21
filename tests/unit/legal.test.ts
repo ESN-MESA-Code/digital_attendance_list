@@ -12,14 +12,14 @@ const texts = fs
 
 describe("fillPlaceholders", () => {
   it("fills nested values", () => {
-    expect(fillPlaceholders("Mail {{dpo.email}}, {{ retention.years }} years")).toBe(
-      `Mail ${LEGAL.dpo.email}, ${LEGAL.retention.years} years`
+    expect(fillPlaceholders("Mail {{association.email}}, {{ retention.years }} years")).toBe(
+      `Mail ${LEGAL.association.email}, ${LEGAL.retention.years} years`
     );
   });
 
   it("fails on unknown placeholders", () => {
-    expect(() => fillPlaceholders("{{dpo.phone}}")).toThrow("unknown placeholder {{dpo.phone}}");
-    expect(() => fillPlaceholders("{{dpo}}")).toThrow();
+    expect(() => fillPlaceholders("{{association.phone}}")).toThrow("unknown placeholder {{association.phone}}");
+    expect(() => fillPlaceholders("{{association}}")).toThrow();
   });
 });
 
@@ -32,7 +32,6 @@ describe("legal texts", () => {
         "privacy.de",
         "form-disclaimer.en",
         "form-data-processing.en",
-        "form-consent.en",
       ])
     );
   });
@@ -48,15 +47,17 @@ describe("legal texts", () => {
     expect(example_deletion_year).toBe(example_event_year + years);
   });
 
-  it("the consent version is a date", () => {
-    expect(LEGAL.consent_version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  it("the notice version is a date", () => {
+    expect(LEGAL.notice_version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it("the form names the DPO and the retention period", () => {
-    const { dataProcessing, consent } = attendanceFormTexts();
-    expect(dataProcessing).toContain(`mailto:${LEGAL.dpo.email}`);
+  it("the form names the contact email and the retention period", () => {
+    const { dataProcessing } = attendanceFormTexts();
+    expect(dataProcessing).toContain(`mailto:${LEGAL.association.email}`);
     expect(dataProcessing).toContain(`${LEGAL.retention.years}th year`);
-    expect(consent).toMatch(/^I consent to/);
-    expect(consent).not.toContain("<p>");
+    // Legitimate interest with a right to object – not consent.
+    expect(dataProcessing).toContain("Art. 6(1)(f) GDPR");
+    expect(dataProcessing).toMatch(/object to the processing/);
+    expect(dataProcessing).not.toMatch(/consent/i);
   });
 });

@@ -1,25 +1,25 @@
 # MESAttendance – data protection documentation
 
 How the MESAttendance app collects, uses, stores, shares and deletes personal data, and
-how it protects it. Written for review by the data protection officer. It follows the
+how it protects it. Written for review by the board. It follows the
 structure of a record of processing activities (Art. 30 GDPR), with the technical and
 organisational measures (Art. 32 GDPR) and open points.
 
 | | |
 | --- | --- |
-| Controller | Münchner Erasmus Studenten Assoziation (MESA) e.V. (byname ESN MESA München), c/o Referat Internationale Angelegenheiten, Geschwister-Scholl-Platz 1, 80539 München; Amtsgericht München VR 200385; info@lmu-mesa.org |
+| Controller | Münchner Erasmus Studenten Assoziation (MESA) e.V. (byname ESN MESA München), c/o Referat Internationale Angelegenheiten, Geschwister-Scholl-Platz 1, 80539 München; Amtsgericht München VR 200385; info@esnmesa.org |
 | Represented by | The board: two chairs and a treasurer; any two represent the association jointly (Satzung) |
-| Data protection officer | Cevin Neubauer, it@esnmesa.org |
+| Data protection officer | None – not required (section 9a). Data protection requests go to info@esnmesa.org |
 | Supervisory authority | Bayerisches Landesamt für Datenschutzaufsicht (BayLDA), Promenade 18, 91522 Ansbach |
 | System | MESAttendance web app (this repository): Next.js on Vercel, Supabase (PostgreSQL) in Frankfurt |
-| Status | As of 21 October 2026, consent text version `2026-10-21` |
+| Status | As of 21 October 2026, data processing notice version `2026-10-21` |
 
 Facts in this document are taken from the code; file references point to the place that
 implements them. All public-facing texts are in this folder and loaded by the app from
 here (see [README](README.md)): [`privacy.en.md`](privacy.en.md) (`/privacy`),
 [`privacy.de.md`](privacy.de.md) (`/datenschutz`), [`impressum.md`](impressum.md)
-(`/impressum`) and the form texts `form-*.md`. Shared values (names, DPO, retention,
-consent version): [`details.json`](details.json).
+(`/impressum`) and the form texts `form-*.md`. Shared values (names, email, retention,
+notice version): [`details.json`](details.json).
 
 ---
 
@@ -49,19 +49,32 @@ statistics (participants per university, country, ESNcard) for reports.
 | | |
 | --- | --- |
 | Data subjects | Event participants, mostly international students in Munich |
-| Data | First and last name; nationality (ISO country code); university (LMU / TUM / Other); exchange programme (Erasmus+ / LMUexchange / Full-time degree / Other); ESNcard yes/no; handwritten signature (PNG image, max. 240 × 80 px, about 1 KB); time of sign-in; entry method (own device / organiser's device) and, for kiosk sign-ins, the organiser's email; version of the consent text agreed to |
+| Data | First and last name; nationality (ISO country code); university (LMU / TUM / Other); exchange programme (Erasmus+ / LMUexchange / Full-time degree / Other); ESNcard yes/no; handwritten signature (PNG image, max. 240 × 80 px, about 1 KB); time of sign-in; entry method (own device / organiser's device) and, for kiosk sign-ins, the organiser's email; version of the data processing notice shown |
 | Not collected | Email, phone, address, date of birth, student ID, photos, IP address in the database, location |
 | Purposes | Documenting attendance and the acceptance of the event's liability disclaimer; proof towards funding bodies and for accounting; anonymous statistics |
-| Legal basis | **Consent**, Art. 6(1)(a) GDPR – required checkbox on the form, never pre-ticked; text in [`form-consent.en.md`](form-consent.en.md), shown with [`form-data-processing.en.md`](form-data-processing.en.md) ([`components/AttendanceForm.tsx`](../components/AttendanceForm.tsx)) |
-| Proof of consent (Art. 7(1)) | Each row stores `consent_version` (the date of the consent text, `consent_version` in [`details.json`](details.json)) and `created_at`; the database refuses new rows without a version ([migration](../supabase/migrations/20261021000900_participant_consent.sql)) |
-| Voluntariness | Stated on the form and in the notice: whoever does not consent can ask the organisers to note their attendance on paper |
-| Withdrawal | By email to the DPO or info@; the entry is then deleted (procedure in section 6) |
+| Legal basis | **Legitimate interest**, Art. 6(1)(f) GDPR, for the list, the proof towards funders and anonymous statistics (balancing test in section 2.1a); **performance of the participation agreement**, Art. 6(1)(b) GDPR, for the acceptance of the disclaimer. No consent checkbox. Information in [`form-data-processing.en.md`](form-data-processing.en.md) on the form ([`components/AttendanceForm.tsx`](../components/AttendanceForm.tsx)) |
+| Proof of information (Art. 5(2)) | Each row stores `notice_version` (the date of the notice shown, `notice_version` in [`details.json`](details.json)) and `created_at`; the database refuses new rows without a version ([migration](../supabase/migrations/20261021001000_legitimate_interest.sql)). Rows from 21 October 2026 created before that migration agreed to the consent text of that date |
+| Obligation to provide | None by law. Needed for the attendance list; whoever does not want to sign in digitally can sign a paper list (same legal basis) |
+| Objection (Art. 21) | By email to info@esnmesa.org; the entry is deleted unless it is still needed as proof for a funded event that a funder may audit – then it is deleted when that period ends, and the person is told (procedure in section 6) |
 | Recipients | MESA organisers (Workspace accounts); funding bodies / auditors on request (printed or exported list); processors in section 4 |
-| Retention | Until the end of the 10th calendar year after the event, then deleted automatically (section 5); earlier on withdrawal |
-| Special categories (Art. 9) | None. Nationality is not an Art. 9 category. Signatures are stored as images only and are not used for biometric identification |
+| Retention | Until the end of the 10th calendar year after the event, then deleted automatically (section 5); earlier after a successful objection |
+| Special categories (Art. 9) | None. Nationality is not an Art. 9 category. Signatures are stored as static images only (no pressure, speed or stroke timing) and are not used for biometric identification |
 
-Rows from before the consent checkbox (21 October 2026) have `consent_version = null`.
-At that time the form only showed a short data protection notice; see open point 1.
+Rows from before 21 October 2026 have `notice_version = null`. At that time the form
+showed a short data protection notice; they rest on the same legitimate interest.
+
+### 2.1a Balancing of interests (Art. 6(1)(f))
+
+| | |
+| --- | --- |
+| Our interest | MESA finances events with grants (e.g. "Lokale Erasmus+ Initiativen") and must prove that funded events took place and who took part; without signed lists funds can be reclaimed. Also documenting the acceptance of the disclaimer and planning events from anonymous statistics |
+| Necessity | A signed attendance list is the usual proof funders ask for. Only fields the list or its statistics need are collected (no contact data). **Nationality** is necessary only if a funder asks for it per person – see open point 11 |
+| Participants' interests | Names and signatures could be misused if leaked (forgery, identity fraud); nationality could reveal origin. Participants reasonably expect an attendance list at a funded event |
+| Safeguards | Only Workspace organisers can read sign-ins (enforced by RLS); participants never see each other's entries; signatures as small images only; fixed retention with automatic deletion; no use for marketing; right to object at any time; measures in section 7 |
+| Result | The interests of the association prevail. Reassess if the purpose, the fields or the circle of recipients change |
+
+Why not consent: people who declined were still noted on paper (so the processing did not
+depend on consent), and a withdrawal would delete exactly the proof the list exists for.
 
 ### 2.2 "Save my details" cookie (participants, optional)
 
@@ -151,7 +164,7 @@ database with fake data.
 | What | When deleted | How |
 | --- | --- | --- |
 | Events and their sign-ins | End of the 10th calendar year after the event (event in 2026 → 31 Dec 2036) | Nightly `pg_cron` job `delete-expired-events` (03:30 UTC) runs `public.delete_expired_events()`; participants are deleted with their event (`on delete cascade`) ([migration](../supabase/migrations/20261021000800_retention.sql), tested in [`tests/db/retention.test.ts`](../tests/db/retention.test.ts)) |
-| A single sign-in on withdrawal of consent | Promptly after the request | Manually by an admin (section 6) |
+| A single sign-in after an objection | Promptly after the request, or when no funder can audit the event any more (section 2.1) | Manually by an admin (section 6) |
 | Events deleted early | Any time | Organisers can delete an event in the app; its sign-ins go with it |
 | Saved-details cookie | After 12 months, or when the participant removes it | Browser |
 | Printed lists | Same time as the digital ones | Organisational – office folder (open point 4) |
@@ -166,7 +179,7 @@ can be shortened in `details.json` plus a new migration for the deletion job.)
 
 ## 6. Data subject rights – how to handle requests
 
-Requests reach it@esnmesa.org or info@lmu-mesa.org. Answer within one month (Art. 12(3)).
+Requests reach info@esnmesa.org. Answer within one month (Art. 12(3)).
 Verify the requester's identity sensibly (e.g. reply from the address they used, or ask
 which events they attended) – the app stores no contact data.
 
@@ -179,7 +192,8 @@ from participants p join events e on e.id = p.event_id
 where lower(p.first_name) = lower('Erika') and lower(p.last_name) = lower('Mustermann')
 order by e.event_date;
 
--- Withdrawal of consent / erasure (Art. 7(3), 17): delete those rows
+-- Objection / erasure (Art. 21, 17): delete those rows – unless the event was funded
+-- and a funder may still audit it; then tell the person, restrict use and delete later
 delete from participants where id in ('<id>', '<id>');
 
 -- Rectification (Art. 16)
@@ -202,13 +216,30 @@ query result as CSV.
   members may **read** participants, nobody may update participant rows; events are
   readable by Workspace members only. A trigger rejects sign-ups from other domains.
 - Signed-off events accept no further sign-ins (enforced in the database).
-- The service role key is used only server-side in the export routes.
+- The service role key is used only server-side in the export routes and kept only in
+  the hosting environment (never in the repository or logs); it is rotated if it may have
+  leaked.
+- Two-factor authentication for every account with access: the `@esnmesa.org` Google
+  accounts (enforced in the Workspace admin console) and the Supabase, Vercel and GitHub
+  accounts – an admin there has full access to the data (open point 12).
+- Few admins: only the people who maintain the app have access to the Supabase and Vercel
+  projects; access is removed when someone leaves the role.
 
 **Confidentiality and integrity**
 - HTTPS only. Signatures live in the database row (not in public file storage); the old
   public storage bucket was closed.
+- Encryption at rest: the database and its backups are stored encrypted by Supabase
+  (AES-256, AWS Frankfurt).
+- **No additional field-level encryption of signatures – a deliberate decision.** Organisers
+  need the signatures in clear text for the dashboard and the PDF, so the key would have
+  to be held by the app next to the credentials an attacker would need anyway (the service
+  role key, or an organiser's session); it would only add protection against the hosting
+  provider, which is bound by its data processing agreement and disk encryption. The
+  printed list in the office shows the same signatures. The risk is covered by RLS,
+  two-factor login, few admins and the export rule below. Revisit if signatures are ever
+  stored in higher resolution or with stroke data.
 - Input validation in the form and in database constraints (field lengths, allowed
-  values, signature size and format, consent version).
+  values, signature size and format, notice version).
 - CSV export escapes formula injection; security headers: no framing
   (`X-Frame-Options: DENY`, `frame-ancestors 'none'`), `nosniff`, `Referrer-Policy:
   same-origin` so the QR token is not leaked ([`next.config.ts`](../next.config.ts)).
@@ -218,6 +249,15 @@ query result as CSV.
   fonts or scripts. The saved-details cookie is opt-in and never holds the signature.
 - Signatures are reduced to a tiny 2-bit greyscale image.
 - Kiosk mode never stores or pre-fills anyone's details; the form resets after each person.
+
+**Organisational rules for organisers**
+- Delete downloaded PDF/CSV files from your device once the list is printed and filed;
+  never send them by messenger or store them in private cloud storage.
+- Keep the office folder with printed lists locked; destroy printed lists with the
+  digital ones at the end of the retention period (shredder or data protection bin).
+- Carry a paper list for participants who do not want to sign in digitally.
+- Organisers confirm in writing that they keep participants' data confidential
+  (Verpflichtung auf Vertraulichkeit) before getting an `@esnmesa.org` account.
 
 **Change management**
 - Database changes only as reviewed migration files, applied by CI on `main`; the
@@ -229,7 +269,8 @@ query result as CSV.
 ## 8. Transparency (Art. 12–14)
 
 - **On the form, before submitting:** a "Data processing" box (who, what, why, who sees
-  it, retention, voluntariness, how to withdraw, DPO contact) and the consent checkbox.
+  it, retention, legal basis, that no law obliges anyone to sign in, the right to object,
+  contact email). No consent checkbox.
 - **Full notice:** `/privacy` and `/datenschutz`, linked in the footer of every page (new
   tab on the form so nothing is lost).
 - **Impressum:** `/impressum` (§ 5 DDG), linked in the footer of every page.
@@ -246,26 +287,51 @@ measures in section 7.
 
 ---
 
-## 10. Open points for the DPO / board
+## 9a. Data protection officer (Art. 37 GDPR, § 38 BDSG)
 
-1. **Sign-ins before 21 October 2026** were collected without the consent checkbox
-   (`consent_version is null`). Decide: rely on legitimate interest for those, or delete
-   them.
+Assessment: **not required**, so none is appointed.
+
+- Art. 37(1): MESA is not a public body; its core activities are not large-scale regular
+  and systematic monitoring, nor large-scale processing of special categories.
+- § 38(1) BDSG: fewer than 20 people are regularly engaged in the automated processing of
+  personal data, and no processing needs a DPIA (section 9). **Count everyone in the
+  association who regularly works with personal data** (board, organisers using this app,
+  member and finance administration) – not only this app's users. Re-check yearly.
+
+Without a DPO the board stays responsible for compliance. There is no separate data
+protection contact: questions and requests go to the association's general address,
+info@esnmesa.org, named in the privacy notice and Impressum.
+
+---
+
+## 10. Open points for the board
+
+1. **Legal basis switched to legitimate interest** (from consent, 21 October 2026): the
+   board should confirm the balancing test in section 2.1a. Older sign-ins
+   (`notice_version is null`) are covered by it as well.
 2. **Data processing agreements** with Vercel, Supabase and Google Workspace: accept /
    confirm and file them.
-3. **Paper alternative:** the notice promises that people who don't consent can be
-   noted on paper – organisers need to know this and carry a paper list.
+3. **Paper alternative:** the notice tells people who don't want to sign in digitally to
+   ask for a paper list – organisers need to know this and carry one (section 7).
 4. **Printed lists:** destroying them at the end of the retention period must be part of
    the office routine.
-5. **Downloaded exports** on organisers' devices: a rule like "delete local PDF/CSV
-   files once the list is filed".
+5. **Organisational rules** (section 7): tell all organisers, collect the
+   confidentiality commitments.
 6. **Retention period:** confirm 10 years is needed by a funder (otherwise 8 or less).
-7. **DPO role:** the DPO also develops and runs this app; authorities often see a
-   conflict of interest for heads of IT. If a DPO is formally appointed, report the
-   appointment to BayLDA (Art. 37(7)).
+7. **DPO removed** (section 9a): if a DPO was ever reported to BayLDA, withdraw that
+   report; recount the people processing personal data each year and appoint a DPO
+   once there are 20 or more.
 8. **Record of processing activities:** take sections 2 and 4 into the association's
    Art. 30 record.
 9. **Impressum contact:** besides email only office hours are given; a phone number or
    contact form would be safer under § 5 DDG.
 10. **esnmesa.org Impressum** lacks board and register entry and links the discontinued
     EU ODR platform.
+11. **Nationality:** check whether the funders' attendance-list template or funding terms
+    ask for nationality per person. If yes, keep the field required and name that in the
+    privacy notice; if only totals are needed, or not at all, remove the field (an
+    optional field would not be "necessary" under Art. 6(1)(f) and would need consent).
+12. **Two-factor authentication:** enforce it in the Google Workspace admin console and
+    check it on the Supabase, Vercel and GitHub accounts with access (section 7).
+13. **Minors:** the disclaimer assumes every participant is of full age. If minors may
+    attend, the disclaimer and the sign-in (parents' signature) need changes.

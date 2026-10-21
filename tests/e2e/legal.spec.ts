@@ -11,7 +11,7 @@ for (const [path, heading] of [
     await page.goto(path);
     await expect(page).toHaveURL(path);
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
-    await expect(page.getByText("it@esnmesa.org").first()).toBeVisible();
+    await expect(page.getByText("info@esnmesa.org").first()).toBeVisible();
   });
 }
 
@@ -28,7 +28,7 @@ test("the login page links both in its footer", async ({ page }) => {
 test("the attendance form explains the data processing and links the notice in its footer", async ({ page, event }) => {
   await page.goto(`/event/${event.public_token}`);
   await expect(page.getByText("Data processing", { exact: true })).toBeVisible();
-  await expect(page.getByText("it@esnmesa.org")).toBeVisible();
+  await expect(page.getByText("info@esnmesa.org")).toBeVisible();
   // Links only in the page footer, in a new tab so the form keeps what was entered.
   const footer = page.getByRole("contentinfo");
   await expect(footer.getByRole("link", { name: "Impressum / Legal notice" })).toHaveAttribute("target", "_blank");

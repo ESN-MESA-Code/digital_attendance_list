@@ -12,12 +12,7 @@ Germany
 
 Email: <{{association.email}}>
 
-## 2. Data protection officer
-
-{{dpo.name}}, <{{dpo.email}}> (postal address as above, marked “Datenschutzbeauftragter”).
-You can contact the data protection officer with any question about your data.
-
-## 3. Signing in to an event
+## 2. Signing in to an event
 
 ### What we collect
 
@@ -31,7 +26,7 @@ device – we store:
 - your handwritten signature (as a small image)
 - the time of signing in, and whether you signed in on your own device or on an organiser's
   device (in that case, which organiser's)
-- which version of the consent text you agreed to
+- which version of this information was shown to you
 
 Your signature also confirms that you accepted the event's liability disclaimer.
 
@@ -44,19 +39,26 @@ Your signature also confirms that you accepted the event's liability disclaimer.
 - for statistics without names (for example how many participants came from which
   university or country) for reports to funders and for planning our events.
 
-### Legal basis: your consent
+### Legal basis
 
-The legal basis is your consent, which you give with the checkbox on the form (Art. 6(1)(a)
-GDPR). We store the version of the consent text you agreed to and the time, so we can show
-what you consented to (Art. 7(1) GDPR).
+- Keeping the attendance list and proving attendance to funders and for our accounting:
+  our legitimate interest (Art. 6(1)(f) GDPR). Many of our events are funded (see
+  above), and we must be able to show that they took place and who took part. Without a
+  signed attendance list we could lose this funding. We collect only what the list needs,
+  only organisers can see it, and it is deleted after the retention period, so we consider
+  that your interests do not override ours.
+- Your acceptance of the event's liability disclaimer, confirmed by your signature:
+  performance of the agreement on your participation (Art. 6(1)(b) GDPR).
+- Statistics without names: the same legitimate interest (Art. 6(1)(f) GDPR).
 
-### Consent is voluntary – and you can withdraw it
+We store which version of this information was shown to you, so we can show what you were
+told when you signed in (Art. 5(2) GDPR).
 
-No law or contract obliges you to consent, and nothing depends on it: if you prefer not to,
-ask the organisers to note your attendance on paper instead. You can withdraw your consent at
-any time with effect for the future by emailing <{{dpo.email}}> (or <{{association.email}}>).
-We then delete your entry. Withdrawal does not affect the lawfulness of the processing before
-it, nor statistics that no longer contain your name.
+### Do you have to sign in?
+
+No law obliges you to provide these details. They are needed for the attendance list: if
+you do not want to sign in digitally, ask the organisers for a paper list. You can object
+to the processing at any time (see section 8, right to object).
 
 ### Who sees it
 
@@ -68,13 +70,13 @@ your data on, and we never sell it or use it for advertising.
 
 ### How long we keep it
 
-Unless you withdraw your consent earlier, sign-ins are deleted automatically at the end of
+Sign-ins are deleted automatically at the end of
 the {{retention.years}}th calendar year after the event (for an event in
 {{retention.example_event_year}}: at the end of {{retention.example_deletion_year}}). We keep
 them this long because funders may ask for the lists as proof for that period. Printed lists
 are destroyed at the same time.
 
-## 4. “Save my details” on your device
+## 3. “Save my details” on your device
 
 After signing in you can choose to save your name, nationality, university, exchange
 programme and ESNcard status in a cookie on your device, so the form is filled in for you at
@@ -86,7 +88,7 @@ The legal basis is your consent (§ 25(1) TDDDG, Art. 6(1)(a) GDPR). You can wit
 any time with effect for the future: click “Not you? Remove saved details” or “Remove them”
 in the form, or delete the cookies of this site in your browser.
 
-## 5. Organiser login
+## 4. Organiser login
 
 Organisers sign in with their MESA Google Workspace account (@esnmesa.org), provided by
 {{processors.login}}. We receive the organiser's name, email address, profile picture and
@@ -98,9 +100,9 @@ list (Art. 6(1)(f) GDPR). This data is kept as long as the events it belongs to.
 
 Signing in sets cookies that hold the login session. They are strictly necessary for the
 organiser area and need no consent (§ 25(2) No. 2 TDDDG). Participants get no cookies apart
-from the optional one in section 4.
+from the optional one in section 3.
 
-## 6. Hosting and server logs
+## 5. Hosting and server logs
 
 The app is hosted by {{processors.hosting}}, on servers in the EU. The data is stored in a
 database of {{processors.database}}, located in Frankfurt am Main, Germany. When you open the
@@ -109,7 +111,7 @@ the page requested, and your browser and operating system. They need it to deliv
 and keep it secure, and keep it only for a short time in their logs. The legal basis is our
 legitimate interest in running the app reliably and securely (Art. 6(1)(f) GDPR).
 
-## 7. Service providers and transfers outside the EU
+## 6. Service providers and transfers outside the EU
 
 Vercel, Supabase and Google process data on our behalf, under data processing agreements
 (Art. 28 GDPR). Although the data is stored in the EU, these companies or their
@@ -120,12 +122,12 @@ clauses (Art. 46(2)(c) GDPR). Privacy information of the providers:
 [Vercel](https://vercel.com/legal/privacy-policy), [Supabase](https://supabase.com/privacy),
 [Google](https://policies.google.com/privacy).
 
-## 8. No tracking
+## 7. No tracking
 
 The app uses no analytics, tracking or advertising tools and loads no fonts or scripts from
 other sites. We make no automated decisions about you (Art. 22 GDPR).
 
-## 9. Your rights
+## 8. Your rights
 
 You have the right to
 
@@ -134,23 +136,27 @@ You have the right to
 - have your data deleted (Art. 17 GDPR),
 - have its processing restricted (Art. 18 GDPR),
 - receive the data you gave us in a machine-readable format (Art. 20 GDPR),
-- withdraw your consent at any time with effect for the future (Art. 7(3) GDPR).
+- withdraw a consent at any time with effect for the future (Art. 7(3) GDPR) – this
+  applies to the optional saved-details cookie (section 3).
 
 **Right to object (Art. 21 GDPR): where we process your data on the basis of our legitimate
-interest (organiser login, server logs), you can object at any time on grounds relating to
+interest (attendance lists, statistics, organiser login, server logs), you can object at any time on grounds relating to
 your particular situation. We then stop processing it unless we have compelling legitimate
-grounds, or need it to establish, exercise or defend legal claims.**
+grounds, or need it to establish, exercise or defend legal claims. For attendance lists this can
+be the case while a funder is still entitled to check the list of a funded event; we then
+tell you so and delete your entry as soon as that period ends.**
 
-To use these rights, email the data protection officer at <{{dpo.email}}> or write to
-<{{association.email}}>.
+To use these rights, email <{{association.email}}> or write to the postal address in
+section 1.
 
 You also have the right to complain to a data protection supervisory authority (Art. 77
 GDPR). The authority responsible for us is the {{authority.name}}, {{authority.address}},
 <{{authority.website}}>.
 
-## 10. Security
+## 9. Security
 
-All connections are encrypted (HTTPS). Sign-ins can only be read with an @esnmesa.org login,
+All connections are encrypted (HTTPS), and the database and its backups are encrypted at
+rest. Sign-ins can only be read with an @esnmesa.org login,
 which the database itself enforces, and signatures are never publicly accessible.
 
 *As of {{as_of.en}}*

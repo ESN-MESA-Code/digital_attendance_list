@@ -15,7 +15,7 @@ import {
   saveDetails,
   type SavedDetails,
 } from "@/lib/savedDetails";
-import { CONSENT_VERSION } from "@/lib/legal";
+import { NOTICE_VERSION } from "@/lib/legal";
 import type { FormTexts, PublicEvent } from "@/types";
 
 const UNIVERSITIES = ["LMU", "TUM", "Other"] as const;
@@ -37,15 +37,11 @@ const schema = z.object({
   disclaimer_accepted: z.boolean().refine((v) => v === true, {
     message: "You must accept the disclaimer to continue.",
   }),
-  // Sign-ins are processed on the basis of this consent (Art. 6(1)(a) GDPR).
-  processing_consent: z.boolean().refine((v) => v === true, {
-    message: "Please consent to continue – or ask the organisers to note your attendance on paper.",
-  }),
 });
 
 type FormData = z.infer<typeof schema>;
 
-// details and consent → signature on its own page → (submitted) →
+// details and disclaimer → signature on its own page → (submitted) →
 // ask to remember details → done
 type Step = "form" | "sign" | "save" | "done";
 
@@ -73,7 +69,7 @@ export function SignInsClosed({ title }: { title: string }) {
 
 interface Props {
   event: PublicEvent;
-  /** Disclaimer, data processing notice and consent label from legal/ */
+  /** Disclaimer and data processing notice from legal/ */
   texts: FormTexts;
   /**
    * Set when the form runs on an organiser's device for participants without
@@ -123,7 +119,6 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
           ? saved.nationality
           : (matchCountry(saved.nationality) ?? ""),
         disclaimer_accepted: false,
-        processing_consent: false,
       } as FormData);
       setUsedSaved(true);
     }
@@ -153,7 +148,6 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
       exchange_program: "",
       esn_card: "",
       disclaimer_accepted: false,
-      processing_consent: false,
     } as unknown as FormData);
   }
 
@@ -198,8 +192,8 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
         exchange_program: details.exchange_program,
         esn_card: details.esn_card === "yes",
         signature,
-        // The consent text this person agreed to (Art. 7(1) GDPR).
-        consent_version: CONSENT_VERSION,
+        // The data processing notice this person was shown (Art. 5(2) GDPR).
+        notice_version: NOTICE_VERSION,
         // Self sign-ins rely on the column defaults ('self', null).
         ...(kiosk && { entry_method: "kiosk", recorded_by: kiosk.recordedBy }),
       });
@@ -516,25 +510,6 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
                 (legal/form-data-processing.en.md); the full notice is linked in
                 the page footer. */}
             <div className="legal-box" dangerouslySetInnerHTML={{ __html: texts.dataProcessing }} />
-
-            {/* Consent checkbox – never pre-ticked, not even from saved details */}
-            <div>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  {...register("processing_consent")}
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-esn focus:ring-esn-accent shrink-0"
-                />
-                <span className="text-sm text-gray-700">
-                  {/* legal/form-consent.en.md */}
-                  <span dangerouslySetInnerHTML={{ __html: texts.consent }} />{" "}
-                  <span className="text-red-500">*</span>
-                </span>
-              </label>
-              {errors.processing_consent && (
-                <p className="text-red-500 text-xs mt-1">{errors.processing_consent.message}</p>
-              )}
-            </div>
 
             <button
               type="submit"

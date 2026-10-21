@@ -1,5 +1,5 @@
 // The public attendance form participants open from the QR code.
-import { CONSENT_VERSION } from "../../lib/legal";
+import { NOTICE_VERSION } from "../../lib/legal";
 import { admin, signOffEvent } from "../helpers/local";
 import { decodeGreyPng, sampleSignature } from "../helpers/png";
 import {
@@ -35,7 +35,7 @@ test("signs in with a small signature stored in the database", async ({ page, ev
     esn_card: true,
     entry_method: "self",
     recorded_by: null,
-    consent_version: CONSENT_VERSION,
+    notice_version: NOTICE_VERSION,
   });
   // A trimmed 2-bit PNG of at most 240 × 80 px, about a kilobyte
   const png = decodeGreyPng(row.signature);
@@ -85,7 +85,6 @@ test("asks for the signature on its own page after the details", async ({ page, 
   await expect(page.locator('input[name="first_name"]')).toHaveValue("Erika");
   await expect(page.getByRole("radio", { name: "TUM" })).toBeChecked();
   await expect(page.getByRole("checkbox", { name: /accept the disclaimer/ })).toBeChecked();
-  await expect(page.getByRole("checkbox", { name: /I consent to/ })).toBeChecked();
   await page.getByRole("button", { name: "Continue to signature →" }).click();
   await drawSignature(page);
   await submitAttendance(page);
@@ -125,13 +124,14 @@ test("requires a signature", async ({ page, event }) => {
   expect(await rowsFor(event.id)).toEqual([]);
 });
 
-test("requires every answer, the disclaimer and the consent before the signature", async ({ page, event }) => {
+test("requires every answer and the disclaimer before the signature", async ({ page, event }) => {
   await page.goto(`/event/${event.public_token}`);
   await page.getByRole("button", { name: "Continue to signature →" }).click();
   await expect(page.getByText("First name is required")).toBeVisible();
   await expect(page.getByText("Please select your university")).toBeVisible();
   await expect(page.getByText("You must accept the disclaimer to continue.")).toBeVisible();
-  await expect(page.getByText(/Please consent to continue/)).toBeVisible();
+  // The legal basis is legitimate interest, not consent: there is no consent checkbox.
+  await expect(page.getByRole("checkbox", { name: /consent/i })).toHaveCount(0);
   await expect(page.getByText("Step 2 of 2")).toBeHidden();
   expect(await rowsFor(event.id)).toEqual([]);
 });

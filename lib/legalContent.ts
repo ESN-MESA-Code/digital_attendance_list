@@ -1,6 +1,6 @@
 // Renders the legal texts in legal/*.md for the pages that show them. The
 // texts use {{placeholders}} for the facts in legal/details.json, so a change
-// of address or DPO is one edit. Server only: reads the files from disk.
+// of address or email is one edit. Server only: reads the files from disk.
 import fs from "node:fs";
 import path from "node:path";
 import { marked } from "marked";
@@ -30,16 +30,10 @@ export function legalHtml(name: string): string {
   return marked.parse(read(name), { async: false });
 }
 
-/** A one-line legal text (e.g. the consent checkbox label) as inline HTML. */
-export function legalInlineHtml(name: string): string {
-  return marked.parseInline(read(name).trim(), { async: false });
-}
-
 /** Everything the attendance form shows from legal/, rendered on the server. */
 export function attendanceFormTexts() {
   return {
     disclaimer: legalHtml("form-disclaimer.en"),
     dataProcessing: legalHtml("form-data-processing.en"),
-    consent: legalInlineHtml("form-consent.en"),
   };
 }

@@ -45,8 +45,8 @@ export interface Participant {
   entry_method: "self" | "kiosk";
   /** Email of the organiser whose device recorded a kiosk sign-in */
   recorded_by: string | null;
-  /** Version (date) of the consent text agreed to; null for sign-ins before consent */
-  consent_version: string | null;
+  /** Version (date) of the data processing notice shown; null for sign-ins before 2026-10-21 */
+  notice_version: string | null;
   created_at: string;
 }
 
@@ -54,8 +54,6 @@ export interface Participant {
 export interface FormTexts {
   disclaimer: string;
   dataProcessing: string;
-  /** The consent checkbox label (inline HTML) */
-  consent: string;
 }
 
 export interface EventWithParticipants extends Event {
