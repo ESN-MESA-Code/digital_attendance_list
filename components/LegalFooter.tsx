@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ASSOCIATION } from "@/lib/legal";
+import { LEGAL } from "@/lib/legal";
 
 /** Impressum and privacy links, on every page (root layout). */
 export default function LegalFooter() {
@@ -16,7 +16,7 @@ export default function LegalFooter() {
 
   return (
     <footer className="border-t border-gray-200 py-4 px-4 text-center text-xs text-gray-500">
-      <span>{ASSOCIATION.shortName}</span>
+      <span>{LEGAL.association.short_name}</span>
       <span aria-hidden="true"> · </span>
       <Link href="/impressum" className="hover:text-gray-800 underline-offset-2 hover:underline" {...newTab}>
         Impressum / Legal notice

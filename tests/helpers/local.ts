@@ -119,6 +119,7 @@ export function participantRow(eventId: string, signature: string, extra: object
     exchange_program: "Erasmus+",
     esn_card: false,
     signature,
+    consent_version: "2026-10-21",
     ...extra,
   };
 }

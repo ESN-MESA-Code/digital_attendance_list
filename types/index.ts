@@ -45,7 +45,17 @@ export interface Participant {
   entry_method: "self" | "kiosk";
   /** Email of the organiser whose device recorded a kiosk sign-in */
   recorded_by: string | null;
+  /** Version (date) of the consent text agreed to; null for sign-ins before consent */
+  consent_version: string | null;
   created_at: string;
+}
+
+/** Legal texts the attendance form shows, as HTML rendered from legal/*.md. */
+export interface FormTexts {
+  disclaimer: string;
+  dataProcessing: string;
+  /** The consent checkbox label (inline HTML) */
+  consent: string;
 }
 
 export interface EventWithParticipants extends Event {

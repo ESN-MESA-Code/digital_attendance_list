@@ -3,7 +3,7 @@ import "./globals.css";
 import LegalFooter from "@/components/LegalFooter";
 
 export const metadata: Metadata = {
-  title: "MES Attendance",
+  title: "MESAttendance",
   description: "Digital attendance lists for MESA events",
 };
 

@@ -81,6 +81,7 @@ The migrations create:
 - `get_public_event()`, which lets the public form look up one event by its QR code token
   (events themselves are readable by organisers only)
 - Realtime on `participants`
+- `participants.consent_version`, required for new sign-ins (the consent text agreed to)
 - A nightly `pg_cron` job deleting events (and their sign-ins) at the end of the tenth
   calendar year after the event, as the privacy notice promises
 
@@ -182,14 +183,15 @@ migration that weakens the privacy rules fails there before it reaches `main`.
 
 ---
 
-## Legal pages
+## Legal pages and data protection
 
-Every page has a footer linking the **Impressum** (`/impressum`, § 5 DDG) and the
-**privacy notice** (`/privacy` in English, `/datenschutz` in German, Art. 13 GDPR); the
-attendance form links the privacy notice next to the disclaimer. The association's
-details, the board, the data protection officer and the retention period live in
-[`lib/legal.ts`](lib/legal.ts) – update it when the board changes. The two privacy
-notices say the same thing; change them together.
+Everything legal lives in [`legal/`](legal): the Impressum (`/impressum`), the privacy
+notice (`/privacy` English, `/datenschutz` German), the disclaimer, data processing and
+consent texts on the attendance form, the shared facts (`details.json`) and the full
+data protection documentation for the DPO ([`legal/DATA_PROTECTION.md`](legal/DATA_PROTECTION.md)).
+The app renders the Markdown files from there – see [`legal/README.md`](legal/README.md)
+for how to edit them. Every page has a footer linking the Impressum and the privacy
+notice; participants consent to the processing with a required checkbox on the form.
 
 ---
 
@@ -231,6 +233,7 @@ esn_card         boolean
 signature        text      -- 'data:image/png;base64,…', about 1 KB
 entry_method     text      -- 'self' | 'kiosk'
 recorded_by      text      -- organiser email for kiosk sign-ins
+consent_version  text      -- date of the consent text agreed to (null before 2026-10-21)
 created_at       timestamptz default now()
 ```
 

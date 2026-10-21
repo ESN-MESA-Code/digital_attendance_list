@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AttendanceForm from "@/components/AttendanceForm";
-import type { Event } from "@/types";
+import type { Event, FormTexts } from "@/types";
 
 // How long the exit button must be held, so participants don't leave by accident.
 const EXIT_HOLD_MS = 1500;
@@ -11,9 +11,10 @@ const EXIT_HOLD_MS = 1500;
 interface Props {
   event: Event;
   recordedBy: string;
+  texts: FormTexts;
 }
 
-export default function KioskView({ event, recordedBy }: Props) {
+export default function KioskView({ event, recordedBy, texts }: Props) {
   const router = useRouter();
   // Changing the key remounts the form: empty fields and a blank signature pad.
   const [round, setRound] = useState(0);
@@ -72,6 +73,7 @@ export default function KioskView({ event, recordedBy }: Props) {
           event_date: event.event_date,
           closed: event.signed_off_at !== null,
         }}
+        texts={texts}
         kiosk={{ recordedBy, onNext: handleNext }}
       />
     </>

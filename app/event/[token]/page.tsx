@@ -1,46 +1,9 @@
-"use client";
+import AttendancePage from "@/components/AttendancePage";
+import { attendanceFormTexts } from "@/lib/legalContent";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
-import AttendanceForm from "@/components/AttendanceForm";
-import type { PublicEvent } from "@/types";
-
-export default function AttendancePage() {
-  const { token } = useParams<{ token: string }>();
-  const [event, setEvent] = useState<PublicEvent | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchEvent() {
-      // Events are private; this returns only the title, description and date
-      // of the one event whose QR code token matches.
-      const { data, error } = await supabase.rpc("get_public_event", { token });
-      const found = (data as PublicEvent[] | null)?.[0];
-      if (!error && found) setEvent(found);
-      setLoading(false);
-    }
-    fetchEvent();
-  }, [token]);
-
-  if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Loading event…</p>
-      </main>
-    );
-  }
-
-  if (!event) {
-    return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-500 font-medium">Event not found.</p>
-          <p className="text-gray-400 text-sm mt-1">This link may be invalid or expired.</p>
-        </div>
-      </main>
-    );
-  }
-
-  return <AttendanceForm event={event} />;
+// The public attendance form participants open from the QR code. The
+// disclaimer and data processing texts come from legal/ (rendered here, on
+// the server).
+export default function EventPage() {
+  return <AttendancePage texts={attendanceFormTexts()} />;
 }

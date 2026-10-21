@@ -15,8 +15,8 @@ import {
   saveDetails,
   type SavedDetails,
 } from "@/lib/savedDetails";
-import { ASSOCIATION, DATA_PROTECTION_OFFICER, RETENTION_YEARS } from "@/lib/legal";
-import type { PublicEvent } from "@/types";
+import { CONSENT_VERSION } from "@/lib/legal";
+import type { FormTexts, PublicEvent } from "@/types";
 
 const UNIVERSITIES = ["LMU", "TUM", "Other"] as const;
 const EXCHANGE_PROGRAMS = ["Erasmus+", "LMUexchange", "Full-time degree", "Other"] as const;
@@ -36,6 +36,10 @@ const schema = z.object({
   esn_card: z.enum(["yes", "no"], { error: "Please indicate if you have an ESNcard" }),
   disclaimer_accepted: z.boolean().refine((v) => v === true, {
     message: "You must accept the disclaimer to continue.",
+  }),
+  // Sign-ins are processed on the basis of this consent (Art. 6(1)(a) GDPR).
+  processing_consent: z.boolean().refine((v) => v === true, {
+    message: "Please consent to continue – or ask the organisers to note your attendance on paper.",
   }),
 });
 
@@ -69,6 +73,8 @@ export function SignInsClosed({ title }: { title: string }) {
 
 interface Props {
   event: PublicEvent;
+  /** Disclaimer, data processing notice and consent label from legal/ */
+  texts: FormTexts;
   /**
    * Set when the form runs on an organiser's device for participants without
    * a phone or internet. Saved details are neither offered nor pre-filled
@@ -82,7 +88,7 @@ interface Props {
   };
 }
 
-export default function AttendanceForm({ event, kiosk }: Props) {
+export default function AttendanceForm({ event, texts, kiosk }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState<Step>("form");
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +123,7 @@ export default function AttendanceForm({ event, kiosk }: Props) {
           ? saved.nationality
           : (matchCountry(saved.nationality) ?? ""),
         disclaimer_accepted: false,
+        processing_consent: false,
       } as FormData);
       setUsedSaved(true);
     }
@@ -146,6 +153,7 @@ export default function AttendanceForm({ event, kiosk }: Props) {
       exchange_program: "",
       esn_card: "",
       disclaimer_accepted: false,
+      processing_consent: false,
     } as unknown as FormData);
   }
 
@@ -190,6 +198,8 @@ export default function AttendanceForm({ event, kiosk }: Props) {
         exchange_program: details.exchange_program,
         esn_card: details.esn_card === "yes",
         signature,
+        // The consent text this person agreed to (Art. 7(1) GDPR).
+        consent_version: CONSENT_VERSION,
         // Self sign-ins rely on the column defaults ('self', null).
         ...(kiosk && { entry_method: "kiosk", recorded_by: kiosk.recordedBy }),
       });
@@ -479,17 +489,8 @@ export default function AttendanceForm({ event, kiosk }: Props) {
               )}
             </div>
 
-            {/* Disclaimer */}
-            <div className="rounded-md border border-gray-300 bg-gray-50 p-4 text-xs text-gray-700">
-              <p className="font-bold uppercase tracking-wide mb-1">Disclaimer</p>
-              <p>
-                The responsibility of MESA e.V. is limited to gross breach of duty or
-                infringement on behalf of MESA e.V. Every participant is of legal full age and
-                is fully responsible for their actions; MESA e.V. is not responsible for
-                damages caused by the participants. The participation in this event is at your
-                own risk.
-              </p>
-            </div>
+            {/* Disclaimer (legal/form-disclaimer.en.md) */}
+            <div className="legal-box" dangerouslySetInnerHTML={{ __html: texts.disclaimer }} />
 
             {/* Disclaimer acceptance checkbox */}
             <div>
@@ -511,24 +512,28 @@ export default function AttendanceForm({ event, kiosk }: Props) {
               )}
             </div>
 
-            {/* Art. 13 GDPR: the essentials at the point of collection; the full
-                notice is linked in the page footer. */}
-            <div className="rounded-md border border-gray-300 bg-gray-50 p-4 text-xs text-gray-700">
-              <p className="font-bold uppercase tracking-wide mb-1">Data protection</p>
-              <p>
-                {ASSOCIATION.shortName} stores your details and signature as the attendance list
-                of this event, to document who took part and to prove it to the bodies that fund
-                our events. Only MESA organisers can see them, and they are deleted at the end of
-                the {RETENTION_YEARS}th year after the event. You can ask for access or deletion
-                at{" "}
-                <a href={`mailto:${DATA_PROTECTION_OFFICER.email}`} className="text-esn underline">
-                  {DATA_PROTECTION_OFFICER.email}
-                </a>
-                .
-              </p>
-              <p className="mt-2">
-                Details: privacy notice (Datenschutzerklärung), linked at the bottom of this page.
-              </p>
+            {/* Art. 13 GDPR: the essentials at the point of collection
+                (legal/form-data-processing.en.md); the full notice is linked in
+                the page footer. */}
+            <div className="legal-box" dangerouslySetInnerHTML={{ __html: texts.dataProcessing }} />
+
+            {/* Consent checkbox – never pre-ticked, not even from saved details */}
+            <div>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  {...register("processing_consent")}
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-esn focus:ring-esn-accent shrink-0"
+                />
+                <span className="text-sm text-gray-700">
+                  {/* legal/form-consent.en.md */}
+                  <span dangerouslySetInnerHTML={{ __html: texts.consent }} />{" "}
+                  <span className="text-red-500">*</span>
+                </span>
+              </label>
+              {errors.processing_consent && (
+                <p className="text-red-500 text-xs mt-1">{errors.processing_consent.message}</p>
+              )}
             </div>
 
             <button

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createSessionClient, getWorkspaceUser } from "@/lib/supabase/session";
 import KioskView from "@/components/KioskView";
+import { attendanceFormTexts } from "@/lib/legalContent";
 import type { Event } from "@/types";
 
 // Attendance form on an organiser's device, for participants without a phone
@@ -16,5 +17,5 @@ export default async function KioskPage({ params }: { params: Promise<{ id: stri
   const { data: event } = await supabase.from("events").select("*").eq("id", id).single();
   if (!event) notFound();
 
-  return <KioskView event={event as Event} recordedBy={user.email} />;
+  return <KioskView event={event as Event} recordedBy={user.email} texts={attendanceFormTexts()} />;
 }

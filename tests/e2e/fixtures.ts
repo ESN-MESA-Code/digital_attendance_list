@@ -62,9 +62,10 @@ export async function fillForm(page: Page, a: Answers = {}) {
   await page.getByRole("radio", { name: "Yes" }).check();
 }
 
-/** Accepts the disclaimer and goes on to the signature page. */
+/** Accepts the disclaimer, consents to the processing and goes on to the signature page. */
 export async function acceptAndContinue(page: Page) {
-  await page.getByRole("checkbox").check();
+  await page.getByRole("checkbox", { name: /accept the disclaimer/ }).check();
+  await page.getByRole("checkbox", { name: /I consent to/ }).check();
   await page.getByRole("button", { name: "Continue to signature →" }).click();
 }
 
@@ -72,7 +73,7 @@ export async function submitAttendance(page: Page) {
   await page.getByRole("button", { name: "Submit attendance" }).click();
 }
 
-/** The whole sign-in after fillForm: disclaimer, signature, submit. */
+/** The whole sign-in after fillForm: disclaimer, consent, signature, submit. */
 export async function acceptSignAndSubmit(page: Page) {
   await acceptAndContinue(page);
   await drawSignature(page);

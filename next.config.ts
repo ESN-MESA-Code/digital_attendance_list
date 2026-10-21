@@ -1,11 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // The PDF export reads the bundled Liberation Sans files from disk at
-  // runtime; keep them in the serverless bundle of every PDF route.
+  // Files read from disk at runtime must be in the serverless bundle: the
+  // bundled Liberation Sans fonts for the PDF routes, the legal texts for
+  // the attendance forms.
   outputFileTracingIncludes: {
     "/api/export/event/[id]/pdf": ["./lib/pdf/fonts/*.ttf"],
     "/api/export/events/pdf": ["./lib/pdf/fonts/*.ttf"],
+    // Pages rendered on request read their legal texts from legal/*.md.
+    "/event/[token]": ["./legal/*.md"],
+    "/kiosk/[id]": ["./legal/*.md"],
   },
   // No framing (clickjacking on the forms), no MIME sniffing, and the QR code
   // token in /event/[token] never leaves the site in a Referer header.

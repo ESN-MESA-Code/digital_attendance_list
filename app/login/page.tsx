@@ -48,7 +48,7 @@ function LoginForm() {
         priority
         className="h-20 w-auto mx-auto"
       />
-      <h1 className="text-xl font-bold text-gray-900 mt-4">MES Attendance</h1>
+      <h1 className="text-xl font-bold text-gray-900 mt-4">MESAttendance</h1>
       <p className="text-sm text-gray-500 mt-1 mb-6">
         Sign in with your @{WORKSPACE_DOMAIN} account
       </p>
