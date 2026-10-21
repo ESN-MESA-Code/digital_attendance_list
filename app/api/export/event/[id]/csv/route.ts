@@ -2,16 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getWorkspaceUser } from "@/lib/supabase/session";
 import { countryName, parseLang } from "@/lib/countries";
+import { escapeCSV } from "@/lib/csv";
 import type { Event, Participant } from "@/types";
-
-function escapeCSV(value: string | null | undefined): string {
-  if (value == null) return "";
-  const str = String(value);
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
 
 export async function GET(
   req: NextRequest,

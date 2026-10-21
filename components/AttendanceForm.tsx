@@ -168,12 +168,8 @@ export default function AttendanceForm({ event, kiosk }: Props) {
       if (isKiosk) {
         // Shared device – never remember anyone's details.
         setStep("done");
-      } else if (usedSaved) {
-        setSubmittedDetails(details);
-        // They agreed to be remembered before – keep the saved details current.
-        saveDetails(details);
-        setStep("done");
       } else {
+        // Details are only stored when the participant says yes – every time.
         setSubmittedDetails(details);
         setStep("save");
       }
@@ -201,13 +197,15 @@ export default function AttendanceForm({ event, kiosk }: Props) {
           {step === "save" && submittedDetails && (
             <div className="mt-6 pt-6 border-t border-gray-200 text-left">
               <h3 className="text-sm font-semibold text-gray-900">
-                Save your details for next time?
+                {usedSaved ? "Keep your details saved for next time?" : "Save your details for next time?"}
               </h3>
               <p className="text-xs text-gray-500 mt-1">
                 We can store your name, nationality, university, exchange programme and
                 ESNcard status in a cookie on this device, so the form is filled in
-                automatically at the next event. Your signature is not saved. You can
-                remove the saved details at any time from the form.
+                automatically at the next event. Your signature is not saved.
+                {usedSaved
+                  ? " “No, thanks” removes the details saved earlier."
+                  : " Nothing is stored unless you choose to save."}
               </p>
               <div className="flex gap-2 mt-4">
                 <button
@@ -220,7 +218,12 @@ export default function AttendanceForm({ event, kiosk }: Props) {
                   Save my details
                 </button>
                 <button
-                  onClick={() => setStep("done")}
+                  onClick={() => {
+                    // Declining also withdraws an earlier yes.
+                    forgetSavedDetails();
+                    setUsedSaved(false);
+                    setStep("done");
+                  }}
                   className="flex-1 border border-gray-300 text-gray-700 py-2 px-3 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
                 >
                   No, thanks

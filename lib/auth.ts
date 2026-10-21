@@ -16,3 +16,13 @@ export function isWorkspaceUser(user: User | null): user is User {
   const hd = (user.user_metadata?.custom_claims?.hd ?? "").toLowerCase();
   return email.endsWith(`@${WORKSPACE_DOMAIN}`) && hd === WORKSPACE_DOMAIN;
 }
+
+/**
+ * Where to go after signing in: only paths on this site, so the login link
+ * cannot send organisers to another site ("//evil.com", "/\evil.com").
+ */
+export function safeNext(next: string | null): string {
+  return next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\")
+    ? next
+    : "/dashboard/events";
+}

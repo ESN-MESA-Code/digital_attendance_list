@@ -1,11 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSessionClient } from "@/lib/supabase/session";
-import { isWorkspaceUser } from "@/lib/auth";
-
-/** Only allow redirects to paths on this site (no "//evil.com"). */
-function safeNext(next: string | null): string {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard/events";
-}
+import { isWorkspaceUser, safeNext } from "@/lib/auth";
 
 // Google → Supabase redirects here with a one-time code after sign-in.
 export async function GET(request: NextRequest) {

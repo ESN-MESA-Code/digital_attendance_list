@@ -13,7 +13,8 @@ export type Lang = keyof typeof EXPORT_LANGUAGES;
 export const DEFAULT_EXPORT_LANG: Lang = "de";
 
 export function parseLang(value: string | null | undefined): Lang {
-  return value && value in EXPORT_LANGUAGES ? (value as Lang) : DEFAULT_EXPORT_LANG;
+  // hasOwn, not `in`: "__proto__" or "toString" from the URL are not languages.
+  return value && Object.hasOwn(EXPORT_LANGUAGES, value) ? (value as Lang) : DEFAULT_EXPORT_LANG;
 }
 
 /** Lower-case and strip accents, so "turkiye" matches "Türkiye". */
