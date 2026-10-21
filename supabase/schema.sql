@@ -49,6 +49,8 @@ create policy "Public can read events"
   on public.events for select
   using (true);
 
+-- Organiser policies below are replaced by supabase/auth.sql, which
+-- restricts them to esnmesa.org Google Workspace accounts.
 -- Only authenticated users (organizers) can create / modify events
 create policy "Authenticated can insert events"
   on public.events for insert

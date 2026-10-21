@@ -85,13 +85,30 @@ cp .env.local.example .env.local
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_GOOGLE_WORKSPACE_DOMAIN=esnmesa.org
 ```
 
 You can find these values in your Supabase project under **Settings → API**.
 
 > ⚠️ The `SUPABASE_SERVICE_ROLE_KEY` is only used server-side (PDF/CSV export routes) and is never exposed to the browser.
 
-### 5. Run the development server
+### 5. Set up Google Workspace login
+
+The organiser dashboard and the exports are only accessible to `@esnmesa.org`
+Google Workspace accounts. The public attendance form stays open.
+
+1. In [Google Cloud Console](https://console.cloud.google.com) (in a project owned by the esnmesa.org organisation):
+   - **APIs & Services → OAuth consent screen**: choose **Internal** as user type. This alone restricts sign-in to Workspace users.
+   - **Credentials → Create credentials → OAuth client ID** (type *Web application*), with authorised redirect URI
+     `https://<your-project>.supabase.co/auth/v1/callback`.
+2. In Supabase under **Authentication → Sign In / Providers**, enable **Google** and paste the client ID and secret.
+   Disable the **Email** provider and the other providers.
+3. Under **Authentication → URL Configuration**, set the Site URL to your deployment URL and add
+   `http://localhost:3000/auth/callback` and `https://<your-domain>/auth/callback` to the redirect URLs.
+4. Run [`supabase/auth.sql`](supabase/auth.sql) in the SQL Editor. It blocks sign-ups from any other
+   account and restricts the organiser RLS policies to esnmesa.org members.
+
+### 6. Run the development server
 
 ```bash
 npm run dev
@@ -99,15 +116,15 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) – you will be redirected to the event dashboard.
 
-### 6. Deploy
+### 7. Deploy
 
-Deploy to [Vercel](https://vercel.com) or any Node.js-compatible host. Make sure to set the three environment variables in your hosting environment.
+Deploy to [Vercel](https://vercel.com) or any Node.js-compatible host. Make sure to set the four environment variables in your hosting environment.
 
 ---
 
 ## Workflow
 
-1. **Organiser** opens `/dashboard/events` and creates an event.
+1. **Organiser** signs in with their esnmesa.org Google account, opens `/dashboard/events` and creates an event.
 2. The event page (`/dashboard/events/[id]`) shows a downloadable **QR code**.
 3. **Participants** scan the QR code, which opens `/event/[token]`.
 4. They fill in their name (+ optional email / organisation) and draw a **signature**.

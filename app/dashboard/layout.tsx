@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { getWorkspaceUser } from "@/lib/supabase/session";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getWorkspaceUser();
+
   return (
     <>
       {/* ESN-branded top navbar */}
@@ -25,6 +28,16 @@ export default function DashboardLayout({
           >
             Events
           </Link>
+          {user && (
+            <div className="ml-auto flex items-center gap-3">
+              <span className="hidden sm:inline text-xs opacity-80">{user.email}</span>
+              <form action="/auth/signout" method="post">
+                <button className="text-sm font-medium opacity-90 hover:opacity-100 hover:underline">
+                  Sign out
+                </button>
+              </form>
+            </div>
+          )}
         </div>
       </header>
 
