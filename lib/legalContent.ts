@@ -30,10 +30,15 @@ export function legalHtml(name: string): string {
   return marked.parse(read(name), { async: false });
 }
 
+/** Links in a form text open a new tab, so the form keeps what was entered. */
+function inNewTab(html: string): string {
+  return html.replace(/<a href="\//g, '<a target="_blank" rel="noopener" href="/');
+}
+
 /** Everything the attendance form shows from legal/, rendered on the server. */
 export function attendanceFormTexts() {
   return {
-    disclaimer: legalHtml("form-disclaimer.en"),
-    dataProcessing: legalHtml("form-data-processing.en"),
+    disclaimer: inNewTab(legalHtml("form-disclaimer.en")),
+    dataProcessing: inNewTab(legalHtml("form-data-processing.en")),
   };
 }

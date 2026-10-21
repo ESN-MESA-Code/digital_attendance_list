@@ -312,9 +312,11 @@ E.g. a leaked service role key, a lost unlocked organiser device, a lost printed
 
 ## 8. Transparency (Art. 12–14)
 
-- **On the form, before submitting:** a "Data processing" box (who, what, why, who sees
-  it, retention, legal basis, that no law obliges anyone to sign in, the right to object,
-  contact email). No consent checkbox.
+- **On the form, before submitting:** a "Data processing" box as the first layer (who,
+  why, legal basis, who sees it including funders, retention, that no law obliges anyone
+  to sign in, the right to object set apart in bold as Art. 21(4) requires, and a direct
+  link to the full notice for the other rights). No consent checkbox – the processing
+  does not rest on consent.
 - **Full notice:** `/privacy` and `/datenschutz`, linked in the footer of every page (new
   tab on the form so nothing is lost).
 - **Impressum:** `/impressum` (§ 5 DDG), linked in the footer of every page.
