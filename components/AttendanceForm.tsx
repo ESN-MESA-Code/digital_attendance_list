@@ -50,6 +50,22 @@ const inputClass =
 // Seconds the kiosk "thank you" screen stays up before the next person's form.
 const KIOSK_RESET_SECONDS = 5;
 
+/** Shown instead of the form once the organiser signed the event off. */
+export function SignInsClosed({ title }: { title: string }) {
+  return (
+    <main className="min-h-screen flex items-center justify-center px-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center max-w-sm w-full">
+        <div className="text-4xl mb-3">🔒</div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Sign-ins are closed</h2>
+        <p className="text-gray-600 text-sm">
+          The attendance list for <span className="font-medium">{title}</span> has been signed
+          off by the organiser. Please talk to them if you attended but could not sign in.
+        </p>
+      </div>
+    </main>
+  );
+}
+
 interface Props {
   event: PublicEvent;
   /**
@@ -74,6 +90,8 @@ export default function AttendanceForm({ event, kiosk }: Props) {
   const [submittedDetails, setSubmittedDetails] = useState<SavedDetails | null>(null);
   // The checked answers from the first page, while the participant signs.
   const [answers, setAnswers] = useState<FormData | null>(null);
+  // The event was signed off while the form was open.
+  const [closed, setClosed] = useState(event.closed);
   const sigPadRef = useRef<SignaturePadHandle>(null);
   const isKiosk = kiosk !== undefined;
   const onNext = kiosk?.onNext;
@@ -175,7 +193,14 @@ export default function AttendanceForm({ event, kiosk }: Props) {
         ...(kiosk && { entry_method: "kiosk", recorded_by: kiosk.recordedBy }),
       });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        // RLS refuses sign-ins for events that were signed off meanwhile.
+        if (insertError.code === "42501") {
+          setClosed(true);
+          return;
+        }
+        throw insertError;
+      }
 
       if (isKiosk) {
         // Shared device – never remember anyone's details.
@@ -195,6 +220,8 @@ export default function AttendanceForm({ event, kiosk }: Props) {
       setSubmitting(false);
     }
   }
+
+  if (closed) return <SignInsClosed title={event.title} />;
 
   if (step === "save" || step === "done") {
     return (

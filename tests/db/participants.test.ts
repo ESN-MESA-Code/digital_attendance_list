@@ -67,7 +67,8 @@ describe("signing in through the public form", () => {
 
   it("cannot sign in to an event that does not exist", async () => {
     const { error } = await anon.from("participants").insert(row({ event_id: crypto.randomUUID() }));
-    expect(error?.code).toBe("23503");
+    // Refused by the insert policy (no open event with that id), before the foreign key.
+    expect(error?.code).toBe("42501");
   });
 });
 

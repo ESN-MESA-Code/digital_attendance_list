@@ -1,6 +1,6 @@
 // The public attendance form participants open from the QR code.
-import { admin } from "../helpers/local";
-import { decodeGreyPng } from "../helpers/png";
+import { admin, signOffEvent } from "../helpers/local";
+import { decodeGreyPng, sampleSignature } from "../helpers/png";
 import {
   acceptAndContinue,
   acceptSignAndSubmit,
@@ -70,7 +70,7 @@ test("security: the form never reads the events table or sees organiser names", 
 test("asks for the signature on its own page after the details", async ({ page, event }) => {
   await page.goto(`/event/${event.public_token}`);
   await expect(page.getByText("Step 1 of 2")).toBeVisible();
-  await expect(page.locator("canvas")).toHaveCount(0);
+  await expect(page.getByLabel("Signature pad")).toHaveCount(0);
 
   await fillForm(page, { firstName: "Erika", lastName: "Mustermann" });
   await acceptAndContinue(page);
@@ -98,7 +98,7 @@ test("the pad draws nothing until it is tapped", async ({ page, event }) => {
   await expect(unlock).toBeVisible();
 
   // A swipe across the locked pad (e.g. while scrolling) leaves no stroke.
-  const box = (await page.locator("canvas").boundingBox())!;
+  const box = (await page.getByLabel("Signature pad").boundingBox())!;
   await page.mouse.move(box.x + 20, box.y + 20);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width - 20, box.y + box.height - 20, { steps: 10 });
@@ -209,4 +209,15 @@ test("saved details can be removed from the form without signing in", async ({ p
   await page.getByRole("button", { name: "Not you? Remove saved details" }).click();
   await expect(page.locator('input[name="first_name"]')).toHaveValue("");
   expect((await context.cookies()).find((c) => c.name === COOKIE)).toBeUndefined();
+});
+
+test("a sign-off while the form is open closes it on submit", async ({ page, event }) => {
+  await page.goto(`/event/${event.public_token}`);
+  await fillForm(page);
+  await acceptAndContinue(page);
+  await signOffEvent(event.id, await sampleSignature());
+  await drawSignature(page);
+  await submitAttendance(page);
+  await expect(page.getByRole("heading", { name: "Sign-ins are closed" })).toBeVisible();
+  expect(await rowsFor(event.id)).toEqual([]);
 });

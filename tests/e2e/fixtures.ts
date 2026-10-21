@@ -26,7 +26,7 @@ export const test = base.extend<{
 });
 
 /** Unlocks the pad with a tap, then draws a wavy signature with real pointer moves. */
-export async function drawSignature(page: Page, pad: Locator = page.locator("canvas")) {
+export async function drawSignature(page: Page, pad: Locator = page.getByLabel("Signature pad")) {
   await pad.scrollIntoViewIfNeeded();
   const unlock = page.getByRole("button", { name: "Tap here to sign" });
   if (await unlock.isVisible()) await unlock.click();

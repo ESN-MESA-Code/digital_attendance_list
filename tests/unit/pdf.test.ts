@@ -15,6 +15,9 @@ const event: Event = {
   created_by: null,
   filed_at: null,
   filed_by: null,
+  signed_off_at: null,
+  signed_off_by: null,
+  organiser_signature: null,
   created_at: "2026-10-01T00:00:00Z",
 };
 
@@ -63,6 +66,18 @@ describe("generateAttendancePdf", () => {
     const { doc, imageCount } = await load(await generateAttendancePdf(event, people));
     expect(doc.getPageCount()).toBe(2);
     expect(imageCount).toBe(logoImages + 40);
+  });
+
+  it("puts the organiser's sign-off signature on the first page", async () => {
+    const signed: Event = {
+      ...event,
+      signed_off_at: "2026-10-21T22:00:00Z",
+      signed_off_by: "organiser@esnmesa.org",
+      organiser_signature: await sampleSignature(),
+    };
+    const { doc, imageCount } = await load(await generateAttendancePdf(signed, []));
+    expect(doc.getPageCount()).toBe(1);
+    expect(imageCount).toBe(logoImages + 1);
   });
 
   it("skips signatures that are not PNG data URLs instead of fetching them", async () => {

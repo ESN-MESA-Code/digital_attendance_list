@@ -12,8 +12,10 @@ import {
   deleteEvent,
   forgedJwt,
   organiserSession,
+  signOffEvent,
   type TestEvent,
 } from "../helpers/local";
+import { sampleSignature } from "../helpers/png";
 
 let event: TestEvent;
 let organiser: SupabaseClient;
@@ -72,12 +74,12 @@ describe("reading events", () => {
 });
 
 describe("get_public_event", () => {
-  it("returns only id, title, description and date for the right token", async () => {
+  it("returns only id, title, description, date and whether it is closed for the right token", async () => {
     const { data, error } = await anon.rpc("get_public_event", { token: event.public_token });
     expect(error).toBeNull();
     expect(data).toHaveLength(1);
-    expect(Object.keys(data[0]).sort()).toEqual(["description", "event_date", "id", "title"]);
-    expect(data[0]).toMatchObject({ id: event.id, title: event.title });
+    expect(Object.keys(data[0]).sort()).toEqual(["closed", "description", "event_date", "id", "title"]);
+    expect(data[0]).toMatchObject({ id: event.id, title: event.title, closed: false });
   });
 
   it.each(["", "nope", "%", "_".repeat(32), "' or '1'='1"])(
@@ -144,6 +146,7 @@ describe("changing events", () => {
   });
 
   it("organisers can mark a list as filed; filed_at and filed_by go together", async () => {
+    await signOffEvent(event.id, await sampleSignature());
     const filed = await organiser
       .from("events")
       .update({ filed_at: new Date().toISOString(), filed_by: ORGANISER.email })

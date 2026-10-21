@@ -33,6 +33,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
+  // The PDF is the signed list: only events the organiser signed off.
+  const unsigned = (events as Event[]).filter((e) => !e.signed_off_at);
+  if (unsigned.length > 0) {
+    return NextResponse.json(
+      { error: "Not signed off yet", events: unsigned.map((e) => e.title) },
+      { status: 409 }
+    );
+  }
+
   const { data: participants, error: participantsError } = await supabaseAdmin
     .from("participants")
     .select("*")

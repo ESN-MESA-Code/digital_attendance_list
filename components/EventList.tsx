@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatFiled } from "@/lib/events/filed";
+import { formatSignedOff } from "@/lib/events/signoff";
 import type { Event } from "@/types";
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
   /** Set while picking events for the combined PDF: shows checkboxes. */
   selected?: Set<string>;
   onToggle?: (id: string) => void;
-  /** Flips an event's "filed in the office" state. */
+  /** Flips an event's "filed in the office" state (signed-off events only). */
   onToggleFiled?: (event: Event) => void;
 }
 
@@ -30,6 +31,7 @@ export default function EventList({
     <ul className="divide-y divide-gray-200">
       {events.map((event) => {
         const isSelected = selected?.has(event.id) ?? false;
+        const signed = !!event.signed_off_at;
         return (
           <li
             key={event.id}
@@ -41,9 +43,11 @@ export default function EventList({
               <input
                 type="checkbox"
                 checked={isSelected}
+                disabled={!signed}
                 onChange={() => onToggle(event.id)}
                 aria-label={`Select ${event.title}`}
-                className="h-4 w-4 shrink-0 accent-esn"
+                title={signed ? undefined : "Only signed-off events can be exported"}
+                className="h-4 w-4 shrink-0 accent-esn disabled:opacity-30"
               />
             )}
             <div className="min-w-0 flex-1">
@@ -57,23 +61,35 @@ export default function EventList({
                   minute: "2-digit",
                 })}
               </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <span
+                  title={formatSignedOff(event)}
+                  aria-label={`${signed ? "Signed off" : "Open"}: ${event.title}`}
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    signed ? "bg-esn/10 text-esn" : "bg-amber-50 text-amber-800 border border-amber-200"
+                  }`}
+                >
+                  {signed ? "✓ Signed off" : "Open"}
+                </span>
+                {onToggleFiled && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleFiled(event)}
+                    disabled={!signed}
+                    title={signed ? `${formatFiled(event)} – click to change` : "Sign the event off before filing it"}
+                    aria-label={`${event.filed_at ? "Filed" : "Not filed"}: ${event.title}`}
+                    aria-pressed={!!event.filed_at}
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      event.filed_at
+                        ? "bg-green-100 text-green-800 hover:bg-green-200"
+                        : "border border-dashed border-gray-300 text-gray-500 enabled:hover:border-esn enabled:hover:text-esn"
+                    }`}
+                  >
+                    {event.filed_at ? "✓ Filed" : "Not filed"}
+                  </button>
+                )}
+              </div>
             </div>
-            {onToggleFiled && (
-              <button
-                type="button"
-                onClick={() => onToggleFiled(event)}
-                title={`${formatFiled(event)} – click to change`}
-                aria-label={`${event.filed_at ? "Filed" : "Not filed"}: ${event.title}`}
-                aria-pressed={!!event.filed_at}
-                className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                  event.filed_at
-                    ? "bg-green-100 text-green-800 hover:bg-green-200"
-                    : "border border-dashed border-gray-300 text-gray-500 hover:border-esn hover:text-esn"
-                }`}
-              >
-                {event.filed_at ? "✓ Filed" : "Not filed"}
-              </button>
-            )}
             <Link
               href={`/dashboard/events/${event.id}`}
               className="shrink-0 text-esn text-sm font-medium hover:underline"

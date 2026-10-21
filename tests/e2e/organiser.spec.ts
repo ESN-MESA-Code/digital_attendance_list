@@ -1,9 +1,9 @@
 // Organiser flows: creating events, the live participant list, kiosk mode
 // and the exports.
 import { PDFDocument } from "pdf-lib";
-import { ORGANISER, admin, anonClient, createEvent, deleteEvent, participantRow } from "../helpers/local";
+import { ORGANISER, admin, anonClient, createEvent, deleteEvent, participantRow, signOffEvent } from "../helpers/local";
 import { sampleSignature } from "../helpers/png";
-import { acceptSignAndSubmit, expect, fillForm, test } from "./fixtures";
+import { acceptSignAndSubmit, drawSignature, expect, fillForm, test } from "./fixtures";
 
 test.beforeEach(async ({ signInAsOrganiser }) => {
   await signInAsOrganiser();
@@ -80,7 +80,8 @@ test("exports CSV without signatures and PDF with them", async ({ page, event })
 
   await page.goto(`/dashboard/events/${event.id}`);
   await expect(page.getByRole("link", { name: "Download as CSV" })).toHaveAttribute("href", `/api/export/event/${event.id}/csv`);
-  await expect(page.getByRole("link", { name: "Download as PDF" })).toHaveAttribute("href", `/api/export/event/${event.id}/pdf`);
+  // The PDF waits for the sign-off
+  await expect(page.getByRole("link", { name: "Download as PDF" })).toHaveAttribute("aria-disabled", "true");
   // Country names are always exported in English.
   await expect(page.getByRole("combobox")).toHaveCount(0);
 
@@ -101,6 +102,9 @@ test("exports CSV without signatures and PDF with them", async ({ page, event })
 
   expect(text).not.toContain("Deutschland");
 
+  // The PDF is the signed list: refused until the event is signed off
+  expect((await page.request.get(`/api/export/event/${event.id}/pdf`)).status()).toBe(409);
+  await signOffEvent(event.id, signature);
   const pdf = await page.request.get(`/api/export/event/${event.id}/pdf`);
   expect(pdf.status()).toBe(200);
   expect(pdf.headers()["content-type"]).toBe("application/pdf");
@@ -145,14 +149,20 @@ test("exports several events as one PDF and marks them as filed", async ({ page,
       participantRow(event.id, signature),
       participantRow(second.id, signature, { first_name: "Zoë" }),
     ]);
+    const unsigned = await createEvent(`Unsigned ${Date.now()}`, ORGANISER.email);
+    await signOffEvent(event.id, signature);
+    await signOffEvent(second.id, signature);
 
     await page.goto("/dashboard/events");
     // No checkboxes until you start an export
     await expect(page.getByRole("checkbox", { name: `Select ${event.title}` })).toHaveCount(0);
     await page.getByRole("button", { name: "Export PDF" }).click();
-    await expect(page.getByText("Select the events to export")).toBeVisible();
+    await expect(page.getByText("Select the signed-off events to export")).toBeVisible();
     await expect(page.getByRole("link", { name: /Download PDF/ })).toHaveCount(0);
 
+    // Only signed-off events can be picked
+    await expect(page.getByRole("checkbox", { name: `Select ${unsigned.title}` })).toBeDisabled();
+    await deleteEvent(unsigned.id);
     await page.getByRole("checkbox", { name: `Select ${event.title}` }).check();
     await page.getByRole("checkbox", { name: `Select ${second.title}` }).check();
     await expect(page.getByText("2 selected")).toBeVisible();
@@ -208,6 +218,10 @@ test("events are sorted by date, newest first", async ({ page }) => {
 test("tracks which printed lists are filed in the office", async ({ page, event }) => {
   await page.goto("/dashboard/events");
   const chip = page.getByRole("button", { name: `Not filed: ${event.title}` });
+  // Only after the sign-off
+  await expect(chip).toBeDisabled();
+  await signOffEvent(event.id, await sampleSignature());
+  await page.reload();
   await chip.click();
   await expect(page.getByRole("button", { name: `Filed: ${event.title}` })).toBeVisible();
 
@@ -218,12 +232,12 @@ test("tracks which printed lists are filed in the office", async ({ page, event 
 
   // The event page shows who filed it, and can undo
   await page.goto(`/dashboard/events/${event.id}`);
-  await expect(page.getByText(`by ${ORGANISER.email}`)).toBeVisible();
+  await expect(page.getByText(/^on .* by organiser@esnmesa\.org$/)).toHaveCount(2); // signed off and filed
   await expect(page.getByText("✓ Filed in office")).toBeVisible();
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(page.getByText("Not filed yet")).toBeVisible();
   await page.getByRole("button", { name: "✓ Mark as filed" }).click();
-  await expect(page.getByText(/^on \d\d \w+ \d{4} by /)).toBeVisible();
+  await expect(page.getByText(/^on \d\d \w+ \d{4} by /)).toHaveCount(2); // signed off and filed again
 
   const { data } = await admin.from("events").select("filed_by").eq("id", event.id).single();
   expect(data!.filed_by).toBe(ORGANISER.email);
@@ -237,6 +251,9 @@ test("the combined export checks its ids", async ({ page, event }) => {
   const tooMany = Array.from({ length: 51 }, () => crypto.randomUUID()).join(",");
   expect((await get(tooMany)).status()).toBe(400);
   expect((await get(`${event.id},${crypto.randomUUID()}`)).status()).toBe(404);
+  // Not signed off yet
+  expect((await get(event.id)).status()).toBe(409);
+  await signOffEvent(event.id, await sampleSignature());
   expect((await get(event.id)).status()).toBe(200);
 });
 
@@ -314,4 +331,59 @@ test("the logo leads back to the events page; no separate Events link", async ({
   await expect(page.getByRole("banner").getByRole("link", { name: "Events", exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "ESN MESA München – back to events" }).click();
   await expect(page).toHaveURL("/dashboard/events");
+});
+
+test("the creator finishes the event with a signature, which closes sign-ins", async ({ page }) => {
+  const ev = await createEvent(`Finish ${Date.now()}`, ORGANISER.email);
+  try {
+    await page.goto(`/dashboard/events/${ev.id}`);
+    await expect(page.getByText("Open for sign-ins")).toBeVisible();
+    await expect(page.getByText("Can be filed after the sign-off.")).toBeVisible();
+    // No PDF before the sign-off
+    await expect(page.getByRole("link", { name: "Download as PDF" })).toHaveAttribute("aria-disabled", "true");
+
+    await page.getByRole("button", { name: "Finish & sign" }).click();
+    // An empty pad is not a signature
+    await page.getByRole("button", { name: "Sign off & close sign-ins" }).click();
+    await expect(page.getByText("Please sign first.")).toBeVisible();
+    await drawSignature(page);
+    await page.getByRole("button", { name: "Sign off & close sign-ins" }).click();
+
+    await expect(page.getByText("✓ Signed off")).toBeVisible();
+    await expect(page.getByText(new RegExp(`^on .* by ${ORGANISER.email}$`))).toBeVisible();
+    await expect(page.getByText("Sign-ins are closed – the attendance list was signed off.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in on this device" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Download as PDF" })).toHaveAttribute(
+      "href",
+      `/api/export/event/${ev.id}/pdf`
+    );
+    expect((await page.request.get(`/api/export/event/${ev.id}/pdf`)).status()).toBe(200);
+
+    const { data } = await admin.from("events").select("signed_off_by, organiser_signature").eq("id", ev.id).single();
+    expect(data!.signed_off_by).toBe(ORGANISER.email);
+    expect(data!.organiser_signature).toMatch(/^data:image\/png;base64,/);
+
+    // Both ways to sign in are closed now
+    await page.goto(`/event/${ev.public_token}`);
+    await expect(page.getByRole("heading", { name: "Sign-ins are closed" })).toBeVisible();
+    await page.goto(`/kiosk/${ev.id}`);
+    await expect(page.getByRole("heading", { name: "Sign-ins are closed" })).toBeVisible();
+
+    // The list shows the status
+    await page.goto("/dashboard/events");
+    await expect(page.getByLabel(`Signed off: ${ev.title}`)).toBeVisible();
+  } finally {
+    await deleteEvent(ev.id);
+  }
+});
+
+test("only the creator can sign an event off", async ({ page }) => {
+  const ev = await createEvent(`Not mine ${Date.now()}`, "someone-else@esnmesa.org");
+  try {
+    await page.goto(`/dashboard/events/${ev.id}`);
+    await expect(page.getByText("Only someone-else@esnmesa.org can sign this event off.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Finish & sign" })).toHaveCount(0);
+  } finally {
+    await deleteEvent(ev.id);
+  }
 });

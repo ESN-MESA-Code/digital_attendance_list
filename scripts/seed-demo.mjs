@@ -16,11 +16,15 @@ const db = createClient(LOCAL_ENV.NEXT_PUBLIC_SUPABASE_URL, LOCAL_ENV.SUPABASE_S
 const day = (d) => new Date(Date.now() + d * 86_400_000).toISOString();
 const token = () => crypto.randomUUID().replace(/-/g, "");
 
+const signedOff = (by, d) => ({ signed_off_at: day(d), signed_off_by: by, organiser_signature: SIGNATURE });
+
+// One of each state: open (yours), signed off (yours), signed off and filed
+// (someone else's), and an older event without a creator.
 const events = [
   { title: "Stammtisch Oktober", event_date: day(2), created_by: ORGANISER },
-  { title: "Pub Crawl Maxvorstadt", event_date: day(-7), created_by: ORGANISER },
+  { title: "Pub Crawl Maxvorstadt", event_date: day(-7), created_by: ORGANISER, ...signedOff(ORGANISER, -6) },
   { title: "Welcome Brunch", event_date: day(-14), created_by: "someone-else@esnmesa.org",
-    filed_at: day(-10), filed_by: "someone-else@esnmesa.org" },
+    ...signedOff("someone-else@esnmesa.org", -13), filed_at: day(-10), filed_by: "someone-else@esnmesa.org" },
   { title: "Museum Night", event_date: day(-30), created_by: null },
 ];
 

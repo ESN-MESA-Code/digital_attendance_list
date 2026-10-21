@@ -41,13 +41,28 @@ export function ExportLink({ href, label, description, onClick, primary = false 
 
 interface Props {
   eventId: string;
+  /** Why the PDF cannot be downloaded yet (it needs the organiser's sign-off). */
+  pdfDisabledReason?: string;
 }
 
-export default function ExportButtons({ eventId }: Props) {
+export default function ExportButtons({ eventId, pdfDisabledReason }: Props) {
   return (
     <div className="flex items-center gap-2">
       <ExportLink href={`/api/export/event/${eventId}/csv`} label="CSV" description="Download as CSV" />
-      <ExportLink href={`/api/export/event/${eventId}/pdf`} label="PDF" description="Download as PDF" primary />
+      {pdfDisabledReason ? (
+        <span
+          role="link"
+          aria-disabled="true"
+          aria-label="Download as PDF"
+          title={pdfDisabledReason}
+          className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium bg-gray-200 text-gray-400 cursor-not-allowed"
+        >
+          <DownloadIcon />
+          PDF
+        </span>
+      ) : (
+        <ExportLink href={`/api/export/event/${eventId}/pdf`} label="PDF" description="Download as PDF" primary />
+      )}
     </div>
   );
 }

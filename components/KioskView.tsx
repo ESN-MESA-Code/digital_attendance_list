@@ -65,7 +65,13 @@ export default function KioskView({ event, recordedBy }: Props) {
 
       <AttendanceForm
         key={round}
-        event={event}
+        event={{
+          id: event.id,
+          title: event.title,
+          description: event.description,
+          event_date: event.event_date,
+          closed: event.signed_off_at !== null,
+        }}
         kiosk={{ recordedBy, onNext: handleNext }}
       />
     </>

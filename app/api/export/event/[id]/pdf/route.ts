@@ -24,6 +24,11 @@ export async function GET(
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
+  // The PDF is the signed list: only after the organiser signed it off.
+  if (!(event as Event).signed_off_at) {
+    return NextResponse.json({ error: "The event has not been signed off yet" }, { status: 409 });
+  }
+
   const { data: participants, error: participantsError } = await supabaseAdmin
     .from("participants")
     .select("*")

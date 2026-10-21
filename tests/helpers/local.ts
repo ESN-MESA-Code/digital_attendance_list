@@ -95,6 +95,15 @@ export async function createEvent(
   return data as TestEvent;
 }
 
+/** Signs an event off as the service role (as if its organiser had). */
+export async function signOffEvent(id: string, signature: string, by = ORGANISER.email) {
+  const { error } = await admin
+    .from("events")
+    .update({ signed_off_at: new Date().toISOString(), signed_off_by: by, organiser_signature: signature })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function deleteEvent(id: string) {
   await admin.from("events").delete().eq("id", id);
 }

@@ -12,11 +12,20 @@ export interface Event {
   filed_at: string | null;
   /** Email of the organiser who marked it as filed */
   filed_by: string | null;
+  /** When the creator signed the list off; closes the event for sign-ins */
+  signed_off_at: string | null;
+  /** Email of the organiser who signed it off */
+  signed_off_by: string | null;
+  /** The organiser's signature, a small PNG data URL like participants' */
+  organiser_signature: string | null;
   created_at: string;
 }
 
 /** What the public attendance form may know about an event (get_public_event). */
-export type PublicEvent = Pick<Event, "id" | "title" | "description" | "event_date">;
+export type PublicEvent = Pick<Event, "id" | "title" | "description" | "event_date"> & {
+  /** Signed off: no more sign-ins */
+  closed: boolean;
+};
 
 export interface Participant {
   id: string;

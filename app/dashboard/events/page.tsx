@@ -179,7 +179,7 @@ export default function EventsDashboard() {
           ) : (
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm text-gray-700 mr-auto">
-                {count === 0 ? "Select the events to export" : `${count} selected`}
+                {count === 0 ? "Select the signed-off events to export" : `${count} selected`}
               </span>
               <button onClick={stopExport} className="text-sm text-gray-500 hover:underline">
                 Cancel
@@ -229,8 +229,7 @@ export default function EventsDashboard() {
             />
           </section>
           <section aria-labelledby="all-events" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 id="all-events" className="text-lg font-semibold mb-1">All events</h2>
-            <p className="text-xs text-gray-500 mb-3">Created by other organisers, or before creators were recorded.</p>
+            <h2 id="all-events" className="text-lg font-semibold mb-4">All events</h2>
             <EventList
               events={otherEvents}
               emptyText={onlyUnfiled ? "All other lists are filed." : "No other events."}

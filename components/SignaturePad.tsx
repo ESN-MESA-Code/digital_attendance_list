@@ -71,6 +71,7 @@ const SignaturePad = forwardRef<SignaturePadHandle>((_, ref) => {
           clearOnResize={false}
           canvasProps={{
             className: "w-full h-48 block",
+            "aria-label": "Signature pad",
             // While locked, touches scroll the page instead of drawing.
             style: { touchAction: armed ? "none" : "auto", pointerEvents: armed ? "auto" : "none" },
           }}

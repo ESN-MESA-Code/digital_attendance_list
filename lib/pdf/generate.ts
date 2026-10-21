@@ -231,7 +231,13 @@ function drawTableHeader(page: PDFPage, top: number, fonts: Fonts): number {
 }
 
 /** Title, logo, event info table and the bilingual disclaimer. Returns table top y. */
-function drawFirstPageHeader(page: PDFPage, event: Event, fonts: Fonts, logo: PDFImage | null): number {
+function drawFirstPageHeader(
+  page: PDFPage,
+  event: Event,
+  fonts: Fonts,
+  logo: PDFImage | null,
+  organiserSignature: PDFImage | null
+): number {
   const title = "TEILNEHMENDENLISTE: MESA e.V.";
   page.drawText(title, { x: 39.5, y: 785.34, size: FS_TITLE, font: fonts.bold, color: BLACK });
   page.drawLine({
@@ -285,7 +291,20 @@ function drawFirstPageHeader(page: PDFPage, event: Event, fonts: Fonts, logo: PD
 
   label("Unterschrift verantwortliche*r", 37.35, 704.64);
   label("MESAnt*in", 37.35, 695.99);
-  value(event.responsible_member ?? "", 157.35, 700.3, 297.9 - 157.35 - CELL_PAD);
+  if (organiserSignature) {
+    // The organiser signed the list off in the app: their signature goes in
+    // the signature field instead of their printed name.
+    const box = { x: 154.3, y: ROW_B_BOT, w: 297.9 - 154.3, h: ROW_A_BOT - ROW_B_BOT };
+    const dims = organiserSignature.scaleToFit(box.w - 2 * CELL_PAD, box.h - 4);
+    page.drawImage(organiserSignature, {
+      x: box.x + (box.w - dims.width) / 2,
+      y: box.y + (box.h - dims.height) / 2,
+      width: dims.width,
+      height: dims.height,
+    });
+  } else {
+    value(event.responsible_member ?? "", 157.35, 700.3, 297.9 - 157.35 - CELL_PAD);
+  }
   label("Unterschrift LEI-", 301.0, 704.64);
   label("Verantwortliche*r", 301.0, 695.99);
   value(event.lei_responsible ?? "", 420.95, 700.3, TABLE_R - 420.95 - CELL_PAD);
@@ -364,8 +383,22 @@ async function appendEventPages(
   event: Event,
   participants: Participant[]
 ): Promise<void> {
+  let organiserSignature: PDFImage | null = null;
+  const sigBytes = event.organiser_signature ? signatureBytes(event.organiser_signature) : null;
+  if (sigBytes) {
+    try {
+      organiserSignature = await pdfDoc.embedPng(sigBytes);
+    } catch {
+      organiserSignature = null;
+    }
+  }
+
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-  let rowTop = drawTableHeader(page, drawFirstPageHeader(page, event, fonts, logo), fonts);
+  let rowTop = drawTableHeader(
+    page,
+    drawFirstPageHeader(page, event, fonts, logo, organiserSignature),
+    fonts
+  );
 
   // Always print at least one page's worth of grid, so an empty list still
   // prints as a usable blank form.
