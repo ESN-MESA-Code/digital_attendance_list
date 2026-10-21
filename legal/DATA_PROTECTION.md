@@ -155,7 +155,11 @@ token through `get_public_event()`, which does not return organiser names.
 GitHub (source code and CI) holds no personal data of participants: tests use a local
 database with fake data.
 
-**Status of the data processing agreements: to be confirmed by the board** (open point 2).
+**Status of the data processing agreements:** Supabase's and Vercel's DPAs are part of their
+terms of service and apply automatically – nothing to sign. Google Workspace's Cloud Data
+Processing Addendum is accepted in the admin console (open point 2). Dated copies of the
+DPAs (and Supabase's transfer impact assessment) are kept with the association's data
+protection documents as evidence (Art. 5(2)).
 
 ---
 
@@ -309,8 +313,10 @@ info@esnmesa.org, named in the privacy notice and Impressum.
 1. **Legal basis switched to legitimate interest** (from consent, 21 October 2026): the
    board should confirm the balancing test in section 2.1a. Older sign-ins
    (`notice_version is null`) are covered by it as well.
-2. **Data processing agreements** with Vercel, Supabase and Google Workspace: accept /
-   confirm and file them.
+2. **Data processing agreements:** accept the Cloud Data Processing Addendum in the Google
+   Workspace admin console. Save dated PDFs of the Supabase DPA and TIA (Organisation →
+   Settings → Legal Documents) and of vercel.com/legal/dpa – not strictly required, but
+   the easiest evidence of which version applied.
 3. **Paper alternative:** the notice tells people who don't want to sign in digitally to
    ask for a paper list – organisers need to know this and carry one (section 7).
 4. **Printed lists:** destroying them at the end of the retention period must be part of
