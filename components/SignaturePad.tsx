@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useImperativeHandle, forwardRef } from "react";
+import { useRef, useImperativeHandle, forwardRef, useEffect } from "react";
 import SignatureCanvas from "react-signature-canvas";
 
 export interface SignaturePadHandle {
@@ -18,15 +18,41 @@ const SignaturePad = forwardRef<SignaturePadHandle>((_, ref) => {
     clear: () => sigPadRef.current?.clear(),
   }));
 
+  // The canvas' pixel size must match its on-screen size, otherwise strokes
+  // drift away from the finger. Re-fit when the width really changes (e.g.
+  // rotating the phone) and redraw the strokes instead of wiping them – mobile
+  // browsers fire "resize" whenever the address bar shows or hides.
+  useEffect(() => {
+    const pad = sigPadRef.current;
+    if (!pad) return;
+    let lastWidth = pad.getCanvas().offsetWidth;
+
+    function onResize() {
+      const canvas = pad!.getCanvas();
+      if (canvas.offsetWidth === lastWidth) return;
+      lastWidth = canvas.offsetWidth;
+      const data = pad!.toData();
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      canvas.width = canvas.offsetWidth * ratio;
+      canvas.height = canvas.offsetHeight * ratio;
+      canvas.getContext("2d")!.scale(ratio, ratio);
+      pad!.clear();
+      pad!.fromData(data);
+    }
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   return (
     <div className="border border-gray-300 rounded-md overflow-hidden bg-white">
+      {/* No width/height props: the library sizes the canvas to its CSS box. */}
       <SignatureCanvas
         ref={sigPadRef}
         penColor="black"
+        clearOnResize={false}
         canvasProps={{
-          width: 500,
-          height: 150,
-          className: "w-full",
+          className: "w-full h-48 block",
           style: { touchAction: "none" },
         }}
       />

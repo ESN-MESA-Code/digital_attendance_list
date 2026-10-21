@@ -44,12 +44,11 @@ export async function GET(
   }
 
   const rows: string[] = [
-    "Surname,First Name,Email,Nationality,University,Exchange Programme,ESNcard,Signature URL,Registered At",
+    "Surname,First Name,Nationality,University,Exchange Programme,ESNcard,Signature URL,Registered At",
     ...((participants ?? []) as Participant[]).map((p) =>
       [
         escapeCSV(p.last_name),
         escapeCSV(p.first_name),
-        escapeCSV(p.email),
         escapeCSV(p.nationality),
         escapeCSV(p.university),
         escapeCSV(p.exchange_program),
