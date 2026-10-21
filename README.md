@@ -81,6 +81,8 @@ The migrations create:
 - `get_public_event()`, which lets the public form look up one event by its QR code token
   (events themselves are readable by organisers only)
 - Realtime on `participants`
+- A nightly `pg_cron` job deleting events (and their sign-ins) at the end of the tenth
+  calendar year after the event, as the privacy notice promises
 
 ### 3. Install dependencies
 
@@ -177,6 +179,17 @@ npm run supabase:stop
 After changing a migration or the seed, run `npx supabase@2.121.0 db reset` to rebuild the
 local database. The **Tests** GitHub workflow runs all of this on every pull request, so a
 migration that weakens the privacy rules fails there before it reaches `main`.
+
+---
+
+## Legal pages
+
+Every page has a footer linking the **Impressum** (`/impressum`, § 5 DDG) and the
+**privacy notice** (`/privacy` in English, `/datenschutz` in German, Art. 13 GDPR); the
+attendance form links the privacy notice next to the disclaimer. The association's
+details, the board, the data protection officer and the retention period live in
+[`lib/legal.ts`](lib/legal.ts) – update it when the board changes. The two privacy
+notices say the same thing; change them together.
 
 ---
 
