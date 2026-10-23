@@ -96,7 +96,7 @@ test("shows the terms with a link to the full text", async ({ page, event }) => 
     page.getByRole("link", { name: "Full participation terms" }).click(),
   ]);
   await expect(terms.getByRole("heading", { level: 1, name: "Participation terms" })).toBeVisible();
-  await expect(terms.getByText("Liability of MESA")).toBeVisible();
+  await expect(terms.getByRole("heading", { name: "5. Liability of MESA" })).toBeVisible();
 });
 
 test("shows the event's risk notice and asks to accept it", async ({ page }) => {
