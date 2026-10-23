@@ -1,9 +1,11 @@
 // Security and data rules for participants: anyone may sign in through the
-// form, nobody but organisers may read, nobody may change or delete rows.
+// form while the list is open, organisers read the names (never the optional
+// details), nobody may change or delete rows.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   ORGANISER,
+  READABLE_COLUMNS,
   admin,
   anonClient,
   clientAs,
@@ -14,23 +16,20 @@ import {
   participantRow,
   type TestEvent,
 } from "../helpers/local";
-import { sampleSignature } from "../helpers/png";
 
 let event: TestEvent;
-let signature: string;
 let organiser: SupabaseClient;
 let outsider: SupabaseClient;
 const anon = anonClient();
 
 beforeAll(async () => {
   event = await createEvent();
-  signature = await sampleSignature();
   organiser = await clientAs((await organiserSession()).access_token);
   outsider = await clientAs(forgedJwt("someone@gmail.com"));
 });
 afterAll(() => deleteEvent(event.id));
 
-const row = (extra: object = {}) => participantRow(event.id, signature, extra);
+const row = (extra: object = {}) => participantRow(event.id, extra);
 
 async function countRows() {
   const { count } = await admin
@@ -46,6 +45,13 @@ describe("signing in through the public form", () => {
     const { error } = await anon.from("participants").insert(row());
     expect(error).toBeNull();
     expect(await countRows()).toBe(before + 1);
+  });
+
+  it("the optional details can be left out", async () => {
+    const { error } = await anon
+      .from("participants")
+      .insert(row({ nationality: null, university: null, exchange_program: null, esn_card: null }));
+    expect(error).toBeNull();
   });
 
   it("but cannot read their own row back", async () => {
@@ -97,19 +103,34 @@ describe("kiosk sign-ins", () => {
 
 describe("reading participants", () => {
   it("anonymous visitors see nobody", async () => {
-    const { data } = await anon.from("participants").select("*");
-    expect(data).toEqual([]);
+    const { data } = await anon.from("participants").select("first_name");
+    expect(data ?? []).toEqual([]);
   });
 
   it("non-Workspace accounts see nobody", async () => {
-    const { data } = await outsider.from("participants").select("*");
-    expect(data).toEqual([]);
+    const { data } = await outsider.from("participants").select("first_name");
+    expect(data ?? []).toEqual([]);
   });
 
-  it("organisers see everyone, with the signature", async () => {
-    const { data } = await organiser.from("participants").select("first_name, signature").eq("event_id", event.id);
+  it("organisers see the names of an open list", async () => {
+    const { data, error } = await organiser.from("participants").select(READABLE_COLUMNS).eq("event_id", event.id);
+    expect(error).toBeNull();
     expect(data!.length).toBeGreaterThan(0);
-    expect(data![0].signature).toBe(signature);
+    expect(data![0]).toMatchObject({ first_name: "Max", terms_version: "2026-10-23" });
+  });
+
+  it.each(["nationality", "university", "exchange_program", "esn_card", "*"])(
+    "nobody reads %s per person, not even organisers",
+    async (column) => {
+      const { data, error } = await organiser.from("participants").select(column).eq("event_id", event.id);
+      expect(error?.code).toBe("42501");
+      expect(data).toBeNull();
+    }
+  );
+
+  it("the signature column is gone", async () => {
+    const { error } = await admin.from("participants").select("signature").limit(1);
+    expect(error?.code).toBe("42703");
   });
 });
 
@@ -130,18 +151,6 @@ describe("changing participants", () => {
 
 describe("validation", () => {
   it.each([
-    ["missing", { signature: undefined }],
-    ["empty", { signature: "" }],
-    ["a URL (old storage links)", { signature: "https://x.supabase.co/storage/v1/object/public/signatures/a.png" }],
-    ["an SVG", { signature: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=" }],
-    ["script in the data URL", { signature: 'data:image/png;base64,AAAA"><script>alert(1)</script>' }],
-    ["too large", { signature: "data:image/png;base64," + "A".repeat(16000) }],
-  ])("rejects a signature that is %s", async (_, extra) => {
-    const { error } = await anon.from("participants").insert(row(extra));
-    expect(error).not.toBeNull();
-  });
-
-  it.each([
     ["an empty first name", { first_name: "" }],
     ["a 201-character last name", { last_name: "x".repeat(201) }],
     ["a country name instead of a code", { nationality: "Germany" }],
@@ -149,17 +158,13 @@ describe("validation", () => {
     ["an unknown university", { university: "Harvard" }],
     ["an unknown exchange programme", { exchange_program: "Party" }],
     ["an unknown entry method", { entry_method: "import" }],
-    ["no ESNcard answer", { esn_card: null }],
-    // Every new sign-in records which data processing notice was shown.
+    // Every sign-in records which notice and which terms were shown.
     ["no notice version", { notice_version: undefined }],
     ["a malformed notice version", { notice_version: "yes" }],
+    ["no terms version", { terms_version: undefined }],
+    ["a malformed terms version", { terms_version: "latest" }],
   ])("rejects %s", async (_, extra) => {
     const { error } = await anon.from("participants").insert(row(extra));
     expect(error).not.toBeNull();
-  });
-
-  it("no longer has the signature_url column", async () => {
-    const { error } = await admin.from("participants").select("signature_url").limit(1);
-    expect(error?.code).toBe("42703");
   });
 });

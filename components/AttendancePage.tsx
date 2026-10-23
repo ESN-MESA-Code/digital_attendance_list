@@ -14,8 +14,8 @@ export default function AttendancePage({ texts }: { texts: FormTexts }) {
 
   useEffect(() => {
     async function fetchEvent() {
-      // Events are private; this returns only the title, description and date
-      // of the one event whose QR code token matches.
+      // Events are private; this returns only the title, date, risk notice and
+      // sign-in window of the one event whose QR code token matches.
       const { data, error } = await supabase.rpc("get_public_event", { token });
       const found = (data as PublicEvent[] | null)?.[0];
       if (!error && found) setEvent(found);

@@ -1,4 +1,4 @@
-// Privacy: events and their sign-ins are deleted at the end of the fifth
+// Privacy: events and their sign-ins are deleted at the end of the third
 // calendar year after the event, as the privacy notice promises; organisers' IP
 // addresses in Supabase Auth are removed after 30 days.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -12,7 +12,7 @@ import {
   participantRow,
   type TestEvent,
 } from "../helpers/local";
-import { sampleSignature } from "../helpers/png";
+import { LEGAL } from "@/lib/legal";
 
 const startOfYear = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
 const yearsBefore = (years: number, days: number) =>
@@ -22,13 +22,11 @@ let expired: TestEvent;
 let kept: TestEvent;
 
 beforeAll(async () => {
-  // The last day of the sixth year back is past retention; the first day of
-  // the fifth year back is kept until the end of this year.
-  expired = await createEvent(undefined, null, { event_date: yearsBefore(5, -1) });
-  kept = await createEvent(undefined, null, { event_date: yearsBefore(5, 0) });
-  const { error } = await admin
-    .from("participants")
-    .insert(participantRow(expired.id, await sampleSignature()));
+  // The last day of the fourth year back is past retention; the first day of
+  // the third year back is kept until the end of this year.
+  expired = await createEvent(undefined, null, { event_date: yearsBefore(3, -1) });
+  kept = await createEvent(undefined, null, { event_date: yearsBefore(3, 0) });
+  const { error } = await admin.from("participants").insert(participantRow(expired.id));
   if (error) throw error;
 });
 afterAll(async () => {
@@ -37,6 +35,10 @@ afterAll(async () => {
 });
 
 describe("delete_expired_events()", () => {
+  it("keeps lists as long as the privacy notice says", () => {
+    expect(LEGAL.retention.years).toBe(3);
+  });
+
   it("cannot be called by visitors or organisers", async () => {
     const organiser = await clientAs((await organiserSession()).access_token);
     for (const client of [anonClient(), organiser]) {

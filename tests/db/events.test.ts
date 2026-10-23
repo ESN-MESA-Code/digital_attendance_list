@@ -13,10 +13,10 @@ import {
   deleteEvent,
   forgedJwt,
   organiserSession,
-  signOffEvent,
+  participantRow,
   type TestEvent,
 } from "../helpers/local";
-import { sampleSignature } from "../helpers/png";
+import { CLOSES_AFTER_MS, OPENS_BEFORE_MS } from "@/lib/events/window";
 
 let event: TestEvent;
 let organiser: SupabaseClient;
@@ -53,14 +53,18 @@ describe("reading events", () => {
     expect(data).toEqual([]);
   });
 
-  it("organisers see events including the responsible names", async () => {
-    const { data } = await organiser
-      .from("events")
-      .select("id, responsible_member, lei_responsible")
-      .eq("id", event.id)
-      .single();
-    expect(data).toEqual({ id: event.id, responsible_member: "Rita Responsible", lei_responsible: "Lea LEI" });
+  it("organisers see events including the responsible name", async () => {
+    const { data } = await organiser.from("events").select("id, responsible_member").eq("id", event.id).single();
+    expect(data).toEqual({ id: event.id, responsible_member: "Rita Responsible" });
   });
+
+  it.each(["description", "lei_responsible", "organiser_signature", "filed_at", "filed_by"])(
+    "the %s column is gone",
+    async (column) => {
+      const { error } = await admin.from("events").select(column).limit(1);
+      expect(error?.code).toBe("42703");
+    }
+  );
 
   it("the GraphQL endpoint respects the same rules", async () => {
     const res = await fetch(`${SUPABASE_URL}/graphql/v1`, {
@@ -75,12 +79,27 @@ describe("reading events", () => {
 });
 
 describe("get_public_event", () => {
-  it("returns only id, title, description, date and whether it is closed for the right token", async () => {
+  it("returns only id, title, date, risk notice and the sign-in window for the right token", async () => {
     const { data, error } = await anon.rpc("get_public_event", { token: event.public_token });
     expect(error).toBeNull();
     expect(data).toHaveLength(1);
-    expect(Object.keys(data[0]).sort()).toEqual(["closed", "description", "event_date", "id", "title"]);
-    expect(data[0]).toMatchObject({ id: event.id, title: event.title, closed: false });
+    expect(Object.keys(data[0]).sort()).toEqual([
+      "closed",
+      "closes_at",
+      "event_date",
+      "id",
+      "opens_at",
+      "risk_notice",
+      "title",
+    ]);
+    expect(data[0]).toMatchObject({ id: event.id, title: event.title, closed: false, risk_notice: null });
+  });
+
+  it("the window matches lib/events/window.ts", async () => {
+    const { data } = await anon.rpc("get_public_event", { token: event.public_token });
+    const date = new Date(data[0].event_date).getTime();
+    expect(new Date(data[0].opens_at).getTime()).toBe(date - OPENS_BEFORE_MS);
+    expect(new Date(data[0].closes_at).getTime()).toBe(date + CLOSES_AFTER_MS);
   });
 
   it.each(["", "nope", "%", "_".repeat(32), "' or '1'='1"])(
@@ -146,31 +165,44 @@ describe("changing events", () => {
     }
   });
 
-  it("organisers can mark a list as filed; filed_at and filed_by go together", async () => {
-    await signOffEvent(event.id, await sampleSignature());
-    const filed = await organiser
+  it("organisers can set a risk notice, at most 2000 characters", async () => {
+    const created = await organiser
       .from("events")
-      .update({ filed_at: new Date().toISOString(), filed_by: ORGANISER.email })
-      .eq("id", event.id)
-      .select("filed_by")
+      .insert({ ...newEvent, public_token: crypto.randomUUID(), risk_notice: "Bring hiking boots." })
+      .select("id, risk_notice")
       .single();
-    expect(filed.data).toEqual({ filed_by: ORGANISER.email });
-    const half = await organiser.from("events").update({ filed_at: null }).eq("id", event.id);
-    expect(half.error?.code).toBe("23514"); // check constraint
-    await organiser.from("events").update({ filed_at: null, filed_by: null }).eq("id", event.id);
+    try {
+      expect(created.data!.risk_notice).toBe("Bring hiking boots.");
+      const tooLong = await organiser.from("events").update({ risk_notice: "x".repeat(2001) }).eq("id", created.data!.id);
+      expect(tooLong.error?.code).toBe("23514");
+      const empty = await organiser.from("events").update({ risk_notice: "" }).eq("id", created.data!.id);
+      expect(empty.error?.code).toBe("23514");
+    } finally {
+      await deleteEvent(created.data!.id);
+    }
   });
 
-  it("non-organisers cannot mark lists as filed", async () => {
-    for (const client of [anon, outsider]) {
-      const upd = await client
-        .from("events")
-        .update({ filed_at: new Date().toISOString(), filed_by: "x@gmail.com" })
-        .eq("id", event.id)
-        .select();
-      expect(upd.data ?? []).toEqual([]);
+  it("date and risk notice are fixed once someone signed in; the title is not", async () => {
+    const created = await organiser
+      .from("events")
+      .insert({ ...newEvent, public_token: crypto.randomUUID(), risk_notice: "Steep path." })
+      .select("id, event_date")
+      .single();
+    const id = created.data!.id;
+    try {
+      // Before any sign-in everything can change.
+      expect((await organiser.from("events").update({ risk_notice: "Steep, muddy path." }).eq("id", id)).error).toBeNull();
+      await anon.from("participants").insert(participantRow(id));
+
+      const date = await organiser.from("events").update({ event_date: new Date(0).toISOString() }).eq("id", id);
+      expect(date.error?.code).toBe("42501");
+      const notice = await organiser.from("events").update({ risk_notice: null }).eq("id", id);
+      expect(notice.error?.code).toBe("42501");
+      const title = await organiser.from("events").update({ title: "Hike (renamed)" }).eq("id", id);
+      expect(title.error).toBeNull();
+    } finally {
+      await deleteEvent(id);
     }
-    const { data } = await organiser.from("events").select("filed_at").eq("id", event.id).single();
-    expect(data).toEqual({ filed_at: null });
   });
 
   it("organisers can create and edit events, but not delete them", async () => {

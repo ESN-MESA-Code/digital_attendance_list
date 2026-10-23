@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AttendanceForm from "@/components/AttendanceForm";
+import { listState, signinsCloseAt, signinsOpenAt } from "@/lib/events/window";
 import type { Event, FormTexts } from "@/types";
 
 // How long the exit button must be held, so participants don't leave by accident.
@@ -16,7 +17,7 @@ interface Props {
 
 export default function KioskView({ event, recordedBy, texts }: Props) {
   const router = useRouter();
-  // Changing the key remounts the form: empty fields and a blank signature pad.
+  // Changing the key remounts the form: empty fields for the next person.
   const [round, setRound] = useState(0);
   const [holding, setHolding] = useState(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,9 +70,11 @@ export default function KioskView({ event, recordedBy, texts }: Props) {
         event={{
           id: event.id,
           title: event.title,
-          description: event.description,
           event_date: event.event_date,
-          closed: event.signed_off_at !== null,
+          risk_notice: event.risk_notice,
+          opens_at: signinsOpenAt(event.event_date).toISOString(),
+          closes_at: signinsCloseAt(event.event_date).toISOString(),
+          closed: listState(event) === "closed",
         }}
         texts={texts}
         kiosk={{ recordedBy, onNext: handleNext }}

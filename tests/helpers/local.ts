@@ -20,6 +20,8 @@ export const ORGANISER = { email: "organiser@esnmesa.org", password: "local-test
 export const SIGNOUT_ORGANISER = { email: "signout@esnmesa.org", password: "local-test-password" };
 /** Has not accepted the confidentiality rules (reset by the tests that use it). */
 export const NEW_ORGANISER = { email: "newcomer@esnmesa.org", password: "local-test-password" };
+/** In public.executives: sees the names on closed lists too. */
+export const EXECUTIVE = { email: "executive@esnmesa.org", password: "local-test-password" };
 
 /** Removes the new organiser's acceptances, so they are asked again. */
 export async function resetNewOrganiser() {
@@ -79,7 +81,10 @@ export interface TestEvent {
   title: string;
 }
 
-/** Creates an event with a random token (as the service role, so no creator unless given). */
+/**
+ * Creates an event with a random token (as the service role, so no creator
+ * unless given). It starts now, so its list is open for sign-ins.
+ */
 export async function createEvent(
   title = `Test event ${crypto.randomUUID().slice(0, 8)}`,
   createdBy: string | null = null,
@@ -89,10 +94,8 @@ export async function createEvent(
     .from("events")
     .insert({
       title,
-      description: "Created by the test suite",
       event_date: new Date().toISOString(),
       responsible_member: "Rita Responsible",
-      lei_responsible: "Lea LEI",
       public_token: crypto.randomUUID().replace(/-/g, ""),
       created_by: createdBy,
       ...extra,
@@ -103,12 +106,29 @@ export async function createEvent(
   return data as TestEvent;
 }
 
-/** Signs an event off as the service role (as if its organiser had). */
-export async function signOffEvent(id: string, signature: string, by = ORGANISER.email) {
+/** An ISO date `hours` from now (negative: in the past). */
+export const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
+
+/**
+ * Signs an event off as the service role (as if its organiser had). The
+ * service role skips the trigger that counts and clears the details, so this
+ * does it the same way the hourly job would.
+ */
+export async function signOffEvent(id: string, headcount = 1, by = ORGANISER.email) {
+  const stats = await admin.rpc("compute_event_stats", { event: id });
+  if (stats.error) throw stats.error;
   const { error } = await admin
     .from("events")
-    .update({ signed_off_at: new Date().toISOString(), signed_off_by: by, organiser_signature: signature })
+    .update({ signed_off_at: new Date().toISOString(), signed_off_by: by, headcount, stats: stats.data })
     .eq("id", id);
+  if (error) throw error;
+  const cleared = await admin.rpc("clear_participant_details", { event: id });
+  if (cleared.error) throw cleared.error;
+}
+
+/** Moves an event into the past, so its list is closed (24 hours after it). */
+export async function closeList(id: string) {
+  const { error } = await admin.from("events").update({ event_date: hoursFromNow(-25) }).eq("id", id);
   if (error) throw error;
 }
 
@@ -116,8 +136,8 @@ export async function deleteEvent(id: string) {
   await admin.from("events").delete().eq("id", id);
 }
 
-/** A valid participant row for `eventId` (self sign-in). */
-export function participantRow(eventId: string, signature: string, extra: object = {}) {
+/** A valid participant row for `eventId` (self sign-in, every optional question answered). */
+export function participantRow(eventId: string, extra: object = {}) {
   return {
     event_id: eventId,
     first_name: "Max",
@@ -126,11 +146,15 @@ export function participantRow(eventId: string, signature: string, extra: object
     university: "TUM",
     exchange_program: "Erasmus+",
     esn_card: false,
-    signature,
-    notice_version: "2026-10-21",
+    notice_version: "2026-10-23",
+    terms_version: "2026-10-23",
     ...extra,
   };
 }
+
+/** The columns organisers may read (not the optional details). */
+export const READABLE_COLUMNS =
+  "id, event_id, first_name, last_name, entry_method, recorded_by, notice_version, terms_version, created_at";
 
 /**
  * The @supabase/ssr auth cookies for a session on the app's origin, chunked

@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { Participant } from "@/types";
 
-const COLUMNS =
-  "id, event_id, first_name, last_name, nationality, university, exchange_program, esn_card, signature, entry_method, recorded_by, created_at";
+// The columns organisers may read (the optional details are not among them).
+const COLUMNS = "id, event_id, first_name, last_name, entry_method, recorded_by, notice_version, terms_version, created_at";
 
 /** `a` plus the rows of `b` it does not have yet, in sign-in order. */
 function merge(a: Participant[], b: Participant[]) {
@@ -15,6 +15,10 @@ function merge(a: Participant[], b: Participant[]) {
   return [...a, ...added].sort((x, y) => x.created_at.localeCompare(y.created_at));
 }
 
+/**
+ * The event's sign-ins, live. Empty when the viewer may not see the names
+ * (closed list, not an executive) – the database decides.
+ */
 export function useParticipants(eventId: string) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);

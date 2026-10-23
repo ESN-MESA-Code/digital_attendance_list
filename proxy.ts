@@ -5,7 +5,8 @@ import { isWorkspaceUser } from "@/lib/auth";
 // Refreshes the Supabase session on every request and keeps organiser-only
 // routes (including the kiosk form on organiser devices) behind the Google
 // Workspace login and the organisers' confidentiality rules (/confidentiality).
-// The public attendance form (/event/[token]) stays open.
+// The public attendance form (/event/[token]) stays open; the daily
+// executives sync (/api/cron/…) checks its own secret.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -37,7 +38,6 @@ export async function proxy(request: NextRequest) {
   const isProtected =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/kiosk") ||
-    pathname.startsWith("/api/export") ||
     pathname.startsWith("/confidentiality");
 
   if (!isProtected) return response;
@@ -76,7 +76,6 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/kiosk/:path*",
-    "/api/export/:path*",
     "/confidentiality/:path*",
     "/login",
     "/auth/:path*",

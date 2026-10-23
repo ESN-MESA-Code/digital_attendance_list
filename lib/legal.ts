@@ -12,6 +12,13 @@ export const LEGAL = details;
 export const NOTICE_VERSION = details.notice_version;
 
 /**
+ * Version (date) of the participation terms (legal/terms.en.md and the short
+ * version on the form), stored with each sign-in as proof of what the
+ * participant accepted. Bump it in legal/details.json whenever the terms change.
+ */
+export const TERMS_VERSION = details.terms_version;
+
+/**
  * Version (date) of the organisers' confidentiality rules
  * (legal/organiser-confidentiality.md). Changing it needs a migration that
  * changes public.confidentiality_version() – organisers are then asked again.

@@ -10,7 +10,8 @@
 -- Used by tests/helpers/local.ts.
 -- organiser@esnmesa.org is used by most tests; signout@esnmesa.org only by
 -- the sign-out test, because signing out ends all of a user's sessions;
--- newcomer@esnmesa.org has not accepted the confidentiality rules yet.
+-- newcomer@esnmesa.org has not accepted the confidentiality rules yet;
+-- executive@esnmesa.org is in public.executives (the executives' group).
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
@@ -25,7 +26,8 @@ select
 from (values
   ('a0000000-0000-4000-8000-000000000001'::uuid, 'organiser@esnmesa.org'),
   ('a0000000-0000-4000-8000-000000000002'::uuid, 'signout@esnmesa.org'),
-  ('a0000000-0000-4000-8000-000000000003'::uuid, 'newcomer@esnmesa.org')
+  ('a0000000-0000-4000-8000-000000000003'::uuid, 'newcomer@esnmesa.org'),
+  ('a0000000-0000-4000-8000-000000000004'::uuid, 'executive@esnmesa.org')
 ) as organisers (id, email);
 
 insert into auth.identities (
@@ -33,12 +35,15 @@ insert into auth.identities (
 )
 select gen_random_uuid(), id, id::text, jsonb_build_object('sub', id, 'email', email), 'email', now(), now(), now()
 from auth.users
-where email in ('organiser@esnmesa.org', 'signout@esnmesa.org', 'newcomer@esnmesa.org');
+where email in ('organiser@esnmesa.org', 'signout@esnmesa.org', 'newcomer@esnmesa.org', 'executive@esnmesa.org');
 
--- The two regular test organisers accepted the current confidentiality rules.
+-- All but the newcomer accepted the current confidentiality rules.
 insert into public.organiser_acknowledgements (email, version)
 select email, public.confidentiality_version()
-from (values ('organiser@esnmesa.org'), ('signout@esnmesa.org')) as organisers (email);
+from (values ('organiser@esnmesa.org'), ('signout@esnmesa.org'), ('executive@esnmesa.org')) as organisers (email);
+
+-- As if the daily sync had found them in the executives' Google group.
+insert into public.executives (email) values ('executive@esnmesa.org');
 
 -- Hosted projects have the GraphQL API enabled; mirror that so the tests
 -- check it does not expose more than the REST API.

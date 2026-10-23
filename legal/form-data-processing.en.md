@@ -1,10 +1,12 @@
 ### Data processing
 
-{{association.short_name}} stores your details and signature as this event's attendance list,
-to prove to our funders who took part (legitimate interest, Art. 6(1)(f) GDPR; for the
-disclaimer Art. 6(1)(b)). Organisers see it, and funders or auditors if they check how funds
-were used. It is deleted at the end of the {{retention.years}}th year after the event. No law
-obliges you to sign in; if you prefer not to, ask the organisers for a paper list.
+{{association.short_name}} stores your name, the time you signed in and the version of the
+participation terms you accepted, to prove that you accepted them and to defend against legal
+claims (Art. 6(1)(b) and (f) GDPR). The optional details are only for anonymous statistics:
+when the list closes we count them and delete them from your entry (Art. 6(1)(f) GDPR).
+Organisers see the names while the event is on, afterwards only our executives. Deleted at the
+end of the {{retention.ordinal_en}} year after the event. No law obliges you to sign in; if
+you prefer not to, ask the organisers for a paper list.
 
 **You can object at any time, on grounds relating to your particular situation (Art. 21
 GDPR):** <{{association.email}}>.
