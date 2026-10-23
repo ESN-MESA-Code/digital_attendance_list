@@ -15,15 +15,16 @@ export interface Event {
   signed_off_by: string | null;
   /** People the organiser counted, entered with the sign-off */
   headcount: number | null;
-  /** Counts written when the list closed (null while it is open) */
-  stats: EventStats | null;
   created_at: string;
 }
 
 /** Counts per answer; "not_given" where someone left a question out. */
 export type Breakdown = Record<string, number>;
 
-/** What public.event_summary() returns: counts, and the breakdown once the list is closed. */
+/**
+ * What public.event_summary() returns: the numbers, and once the list is
+ * closed the counts per answer (from public.event_stats).
+ */
 export interface EventStats {
   signins: number;
   /** Sign-ins on an organiser's device */
@@ -51,9 +52,9 @@ export interface PublicEvent {
 }
 
 /**
- * A sign-in as organisers can read it. The optional details (nationality,
- * university, programme, ESNcard) are not readable per person – they only
- * appear counted in EventStats.
+ * A sign-in as organisers can read it. The optional answers (nationality,
+ * university, programme, ESNcard) are not part of it – public.sign_in() only
+ * counts them (EventStats).
  */
 export interface Participant {
   id: string;

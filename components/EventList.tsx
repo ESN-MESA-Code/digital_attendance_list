@@ -7,6 +7,8 @@ import type { Event } from "@/types";
 
 interface Props {
   events: Event[];
+  /** Sign-ins per event id (public.event_signin_counts()). */
+  signins?: Record<string, number>;
   /** Shown when the list is empty. */
   emptyText?: string;
 }
@@ -19,7 +21,11 @@ const STATUS = {
   signed: { label: "✓ Signed off", className: "bg-esn/10 text-esn" },
 } as const;
 
-export default function EventList({ events, emptyText = "No events yet. Create your first event above." }: Props) {
+export default function EventList({
+  events,
+  signins = {},
+  emptyText = "No events yet. Create your first event above.",
+}: Props) {
   if (events.length === 0) {
     return <p className="text-gray-500 text-sm py-4 text-center">{emptyText}</p>;
   }
@@ -49,9 +55,9 @@ export default function EventList({ events, emptyText = "No events yet. Create y
                 >
                   {status.label}
                 </span>
-                {event.signed_off_at && event.stats && (
+                {event.signed_off_at && (
                   <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs text-gray-600 bg-gray-100">
-                    {event.stats.signins} signed in · {event.headcount} counted
+                    {signins[event.id] ?? 0} signed in · {event.headcount} counted
                   </span>
                 )}
               </div>

@@ -28,6 +28,8 @@ beforeAll(async () => {
   kept = await createEvent(undefined, null, { event_date: yearsBefore(3, 0) });
   const { error } = await admin.from("participants").insert(participantRow(expired.id));
   if (error) throw error;
+  const stats = await admin.from("event_stats").insert({ event_id: expired.id, question: "esn_card", answer: "yes", total: 1 });
+  if (stats.error) throw stats.error;
 });
 afterAll(async () => {
   await deleteEvent(expired.id);
@@ -47,7 +49,7 @@ describe("delete_expired_events()", () => {
     }
   });
 
-  it("deletes events past retention with their sign-ins, and keeps the rest", async () => {
+  it("deletes events past retention with their sign-ins and counts, and keeps the rest", async () => {
     const { error } = await admin.rpc("delete_expired_events");
     expect(error).toBeNull();
 
@@ -58,6 +60,8 @@ describe("delete_expired_events()", () => {
       .select("id")
       .eq("event_id", expired.id);
     expect(participants).toEqual([]);
+    const { data: counts } = await admin.from("event_stats").select("event_id").eq("event_id", expired.id);
+    expect(counts).toEqual([]);
   });
 });
 

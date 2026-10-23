@@ -18,8 +18,11 @@ attendance list, which our general privacy notice covers.
 
 **What we store:** first and last name, the time of signing in, whether you signed in on your
 own device or on an organiser's (and whose), and which version of the participation terms and
-of this information you were shown. Optionally, if you answer: nationality, university,
-exchange programme and whether you have an ESNcard.
+of this information you were shown.
+
+**What we only count:** if you answer the optional questions (nationality, university,
+exchange programme, whether you have an ESNcard), we add your answers to the event's counts
+(for example “Italy: 12”). They are never stored with your name or your sign-in.
 
 **Why and on what legal basis:**
 
@@ -30,14 +33,13 @@ exchange programme and whether you have an ESNcard.
 - To show our finance team that an event took place and how many people came, so the organisers
   get their expenses back. Only counts are used for this, no names. Legal basis: our
   legitimate interest in proper accounts (Art. 6(1)(f) GDPR).
-- Statistics without names for planning our events and for reports, from the optional
-  details. When the list closes (at the sign-off, or 24 hours after the event) we count the
-  answers and then delete the optional details from every entry; nobody can see them per
-  person before that either. Legal basis: our legitimate interest in planning our events
-  (Art. 6(1)(f) GDPR).
+- Statistics without names for planning our events and for reports, from the counts of the
+  optional answers. They are shown once the list is closed (at the sign-off, or 24 hours
+  after the event). Legal basis: our legitimate interest in planning our events (Art. 6(1)(f)
+  GDPR).
 
 **Do you have to sign in?** No law obliges you to. If you do not want to sign in digitally,
-ask the organisers for a paper list. The optional details can be left out.
+ask the organisers for a paper list. The optional questions can be left out.
 
 **Who sees it:** MESA organisers with their @esnmesa.org account see the names while the event
 is on (from 2 hours before it until the sign-off, at the latest 24 hours after it). After
@@ -46,12 +48,12 @@ that only our executives see the names. Organisers and our finance team see the 
 **How long:** deleted automatically at the end of the {{retention.ordinal_en}} calendar year
 after the event (for an event in {{retention.example_event_year}}: at the end of
 {{retention.example_deletion_year}}) – the period in which claims from the event could be
-raised. If something happens at an event, we keep that event's list until the matter is
+raised. The event's counts are deleted with it. If something happens at an event, we keep that event's list until the matter is
 settled.
 
 ## 3. “Save my details” on your device
 
-If you click “Save my details” after signing in, your name and any optional details you gave
+If you click “Save my details” after signing in, your name and any optional answers you gave
 are saved in your browser's storage. They stay on your device, are never sent to our servers
 and are forgotten after 12 months. Legal basis: your consent (§ 25(1) TDDDG, Art. 6(1)(a)
 GDPR). You can withdraw it at any time with “Not you? Remove saved details” or “Remove them”

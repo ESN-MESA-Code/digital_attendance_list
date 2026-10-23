@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { Participant } from "@/types";
 
-// The columns organisers may read (the optional details are not among them).
 const COLUMNS = "id, event_id, first_name, last_name, entry_method, recorded_by, notice_version, terms_version, created_at";
 
 /** `a` plus the rows of `b` it does not have yet, in sign-in order. */

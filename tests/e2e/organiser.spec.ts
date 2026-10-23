@@ -9,7 +9,7 @@ import {
   closeList,
   createEvent,
   deleteEvent,
-  participantRow,
+  signIn,
 } from "../helpers/local";
 import { acceptAndSubmit, expect, fillForm, test } from "./fixtures";
 
@@ -50,7 +50,7 @@ test("creates an event and lands on its QR code page", async ({ page }) => {
 });
 
 test("the event page lists sign-ins live, names only", async ({ page, event }) => {
-  await anonClient().from("participants").insert(participantRow(event.id, { first_name: "Before" }));
+  await signIn(anonClient(), event.id, { first_name: "Before" });
 
   await page.goto(`/dashboard/events/${event.id}`);
   await expect(page.getByRole("heading", { name: event.title })).toBeVisible();
@@ -58,7 +58,7 @@ test("the event page lists sign-ins live, names only", async ({ page, event }) =
   await expect(page.getByText(`/event/${event.public_token}`)).toBeVisible();
 
   // Someone signs in while the page is open
-  await anonClient().from("participants").insert(participantRow(event.id, { first_name: "Live" }));
+  await signIn(anonClient(), event.id, { first_name: "Live" });
   await expect(page.getByRole("cell", { name: "Live", exact: true })).toBeVisible({ timeout: 15_000 });
 
   // No per-person details or signatures
@@ -104,10 +104,8 @@ test("an unknown event 404s in the kiosk", async ({ page }) => {
 test("the creator signs off with a headcount, which closes sign-ins and the names", async ({ page }) => {
   const ev = await createEvent(`Finish ${Date.now()}`, ORGANISER.email);
   try {
-    await anonClient().from("participants").insert([
-      participantRow(ev.id, { first_name: "Anna", nationality: "DE" }),
-      participantRow(ev.id, { first_name: "Ben" }),
-    ]);
+    await signIn(anonClient(), ev.id, { first_name: "Anna", nationality: "DE" });
+    await signIn(anonClient(), ev.id, { first_name: "Ben" });
     await page.goto(`/dashboard/events/${ev.id}`);
     await expect(page.getByText("Open for sign-ins")).toBeVisible();
     await expect(page.getByRole("cell", { name: "Anna", exact: true })).toBeVisible();
@@ -160,7 +158,7 @@ test("only the creator can sign an event off", async ({ page }) => {
 });
 
 test("a list closed 24 hours after the event awaits the sign-off", async ({ page, event }) => {
-  await anonClient().from("participants").insert(participantRow(event.id, { first_name: "Late" }));
+  await signIn(anonClient(), event.id, { first_name: "Late" });
   await closeList(event.id);
   await page.goto(`/dashboard/events/${event.id}`);
   await expect(page.getByText("Closed – awaiting sign-off")).toBeVisible();
@@ -171,7 +169,7 @@ test("a list closed 24 hours after the event awaits the sign-off", async ({ page
 });
 
 test("executives still see the names of a closed list", async ({ page, context, event, signInAsOrganiser }) => {
-  await anonClient().from("participants").insert(participantRow(event.id, { first_name: "Kept" }));
+  await signIn(anonClient(), event.id, { first_name: "Kept" });
   await closeList(event.id);
   await context.clearCookies();
   await signInAsOrganiser(EXECUTIVE);
@@ -292,7 +290,7 @@ test.describe("in Munich", () => {
   });
 
   test("once people signed in, only the title can change", async ({ page, event }) => {
-    await anonClient().from("participants").insert(participantRow(event.id));
+    await signIn(anonClient(), event.id);
     await page.goto(`/dashboard/events/${event.id}`);
     await page.getByRole("button", { name: "Edit" }).click();
     await expect(page.locator('input[name="event_date"]')).not.toBeEditable();

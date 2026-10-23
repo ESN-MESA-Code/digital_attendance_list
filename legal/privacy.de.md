@@ -19,8 +19,12 @@ Datenschutzerklärung gilt.
 **Was wir speichern:** Vor- und Nachname, den Zeitpunkt des Eintrags, ob Sie sich auf Ihrem
 eigenen Gerät oder dem einer Organisatorin bzw. eines Organisators eingetragen haben (und
 wessen), und welche Fassung der Teilnahmebedingungen und dieser Informationen Ihnen angezeigt
-wurde. Freiwillig, wenn Sie antworten: Staatsangehörigkeit, Universität, Austauschprogramm und
-ob Sie eine ESNcard haben.
+wurde.
+
+**Was wir nur zählen:** Wenn Sie die freiwilligen Fragen beantworten (Staatsangehörigkeit,
+Universität, Austauschprogramm, ob Sie eine ESNcard haben), zählen wir Ihre Antworten zu den
+Zahlen der Veranstaltung hinzu (zum Beispiel „Italien: 12“). Sie werden nie zusammen mit Ihrem
+Namen oder Ihrem Eintrag gespeichert.
 
 **Zwecke und Rechtsgrundlagen:**
 
@@ -34,9 +38,8 @@ ob Sie eine ESNcard haben.
   unser berechtigtes Interesse an einer ordnungsgemäßen Buchführung (Art. 6 Abs. 1 lit. f
   DSGVO).
 - Statistiken ohne Namen für die Planung unserer Veranstaltungen und für Berichte, aus den
-  freiwilligen Angaben. Wenn die Liste geschlossen wird (beim Abzeichnen, spätestens 24 Stunden
-  nach der Veranstaltung), zählen wir die Antworten und löschen die freiwilligen Angaben dann
-  aus jedem Eintrag; auch vorher kann niemand sie pro Person einsehen. Rechtsgrundlage: unser
+  gezählten freiwilligen Antworten. Sie werden angezeigt, sobald die Liste geschlossen ist
+  (beim Abzeichnen, spätestens 24 Stunden nach der Veranstaltung). Rechtsgrundlage: unser
   berechtigtes Interesse an der Planung unserer Veranstaltungen (Art. 6 Abs. 1 lit. f DSGVO).
 
 **Müssen Sie sich eintragen?** Gesetzlich sind Sie nicht dazu verpflichtet. Wenn Sie sich
@@ -51,13 +54,14 @@ Organisator*innen und unser Finanzteam sehen die Zahlen.
 **Speicherdauer:** automatische Löschung am Ende des {{retention.ordinal_de}} Kalenderjahres
 nach der Veranstaltung (bei einer Veranstaltung im Jahr {{retention.example_event_year}} also
 Ende {{retention.example_deletion_year}}) – der Zeitraum, in dem Ansprüche aus der
-Veranstaltung geltend gemacht werden können. Kommt es bei einer Veranstaltung zu einem
+Veranstaltung geltend gemacht werden können. Die Zahlen der Veranstaltung werden mit ihr
+gelöscht. Kommt es bei einer Veranstaltung zu einem
 Vorfall, bewahren wir deren Liste auf, bis die Sache geklärt ist.
 
 ## 3. „Daten speichern“ auf Ihrem Gerät
 
 Wenn Sie nach dem Eintragen auf „Save my details“ klicken, werden Ihr Name und Ihre
-freiwilligen Angaben im Speicher Ihres Browsers gespeichert. Sie bleiben auf Ihrem Gerät,
+freiwilligen Antworten im Speicher Ihres Browsers gespeichert. Sie bleiben auf Ihrem Gerät,
 werden nie an unsere Server übertragen und nach 12 Monaten vergessen. Rechtsgrundlage: Ihre
 Einwilligung (§ 25 Abs. 1 TDDDG, Art. 6 Abs. 1 lit. a DSGVO). Sie können sie jederzeit
 widerrufen: über „Not you? Remove saved details“ bzw. „Remove them“ im Formular oder indem Sie

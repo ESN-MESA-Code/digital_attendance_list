@@ -15,8 +15,8 @@ participation terms, anonymous statistics, and proof towards finance that an eve
 - **QR code** linking to the public attendance form; sign-ins from 2 hours before the event
   until 24 hours after it
 - **Participation terms** accepted with a checkbox; each sign-in stores the terms version
-- **Optional statistics questions** (nationality, university, programme, ESNcard), counted
-  when the list closes and then deleted from every sign-in
+- **Optional statistics questions** (nationality, university, programme, ESNcard) – only
+  counted per event, never stored with a name
 - **Realtime dashboard** – participant names update live while the list is open
 - **Sign-off with a headcount** – closes the list; finance checks the counts on the event page
 - **Executives** (a Google Workspace group) see the names of closed lists; other organisers
@@ -84,19 +84,19 @@ To change the schema, add a new file `supabase/migrations/<YYYYMMDDHHMMSS>_<name
 never edit a migration that has already been applied.
 
 The migrations create:
-- `events`, `participants` and `executives` tables
+- `events`, `participants`, `event_stats` (counts per answer) and `executives` tables
 - Row Level Security policies (organiser access limited to esnmesa.org accounts; participant
-  names only while a list is open, for executives always; the optional details never per
-  person)
+  names only while a list is open, for executives always; counts not readable directly)
+- `sign_in()` – the only way to sign in: stores the name and adds the optional answers to the
+  event's counts
 - A trigger rejecting sign-ups from any other account
 - `get_public_event()`, which lets the public form look up one event by its QR code token
   (events themselves are readable by organisers only)
 - Realtime on `participants`
 - `participants.notice_version` and `terms_version`, required for every sign-in
 - Sign-ins only from 2 hours before to 24 hours after the event (`event_accepts_signins()`)
-- `event_summary()` – the counts every organiser (and finance) sees
-- An hourly `pg_cron` job counting and clearing the optional details of lists that closed
-  without a sign-off (the sign-off does it at once)
+- `event_summary()` – the numbers every organiser (and finance) sees, with the counts per
+  answer once the list is closed
 - A nightly `pg_cron` job deleting events (and their sign-ins) at the end of the third
   calendar year after the event, as the privacy notice promises
 - A nightly `pg_cron` job removing organisers' IP addresses from Supabase Auth's audit log
@@ -252,12 +252,12 @@ and (f) GDPR); the form shows the terms and the data processing notice before si
 2. The event page (`/dashboard/events/[id]`) shows a downloadable **QR code**.
 3. **Participants** scan the QR code (from 2 hours before the event), which opens `/event/[token]`.
 4. They enter their name, optionally nationality, university, exchange programme and ESNcard
-   status, and **accept the participation terms** (and the risk notice).
-5. The organiser's dashboard lists the names in **real time**; the optional details are never
-   shown per person.
+   status, and **accept the participation terms** (and the risk notice). The answers are only
+   added to the event's counts, never stored with the name.
+5. The organiser's dashboard lists the names in **real time**.
 6. After the event the creator **signs off** with the number of people they counted. That
-   closes the list (it closes by itself 24 hours after the event), counts the optional
-   details and deletes them from the sign-ins. From then on only **executives** see the names.
+   closes the list (it closes by itself 24 hours after the event). From then on only
+   **executives** see the names; everyone sees the counts.
 7. **Finance** opens the event page ("Copy link for finance") and checks the counts: sign-ins,
    headcount, kiosk sign-ins, the time range and the breakdown.
 
@@ -277,24 +277,27 @@ risk_notice        text        -- optional; fixed once someone signed in
 signed_off_at      timestamptz
 signed_off_by      text
 headcount          integer     -- people counted, entered with the sign-off
-stats              jsonb       -- counts written when the list closes
 created_at         timestamptz default now()
 
--- participants (anyone may insert inside the window; organisers read the names
--- while the list is open, executives always; nobody reads the optional columns)
+-- participants (written by sign_in() inside the window; organisers read the
+-- names while the list is open, executives always)
 id               uuid primary key
 event_id         uuid references events(id)
 first_name       text
 last_name        text
-nationality      text      -- optional ISO code, cleared when the list closes
-university       text      -- optional 'LMU' | 'TUM' | 'Other', cleared when the list closes
-exchange_program text      -- optional, cleared when the list closes
-esn_card         boolean   -- optional, cleared when the list closes
 entry_method     text      -- 'self' | 'kiosk'
 recorded_by      text      -- organiser email for kiosk sign-ins
 notice_version   text      -- date of the data processing notice shown
 terms_version    text      -- date of the participation terms accepted
 created_at       timestamptz default now()
+
+-- event_stats (counts of the optional answers, never linked to a person;
+-- written by sign_in(), reported by event_summary() once the list is closed)
+event_id         uuid references events(id)
+question         text      -- 'nationality' | 'university' | 'exchange_program' | 'esn_card'
+answer           text      -- e.g. 'IT', 'LMU', 'yes', or 'not_given'
+total            integer
+primary key (event_id, question, answer)
 
 -- executives (synced from the Google Workspace group; not readable through the API)
 email            text primary key

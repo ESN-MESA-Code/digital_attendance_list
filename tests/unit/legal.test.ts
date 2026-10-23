@@ -78,6 +78,8 @@ describe("legal texts", () => {
     expect(dataProcessing).toMatch(/<strong>You can object at any time, on grounds relating to your particular situation/);
     // Names for organisers while the event is on, then executives; no funders.
     expect(dataProcessing).toContain("afterwards only our executives");
+    // The optional answers are only counted.
+    expect(dataProcessing).toContain("never stored with your name");
     expect(dataProcessing).not.toMatch(/funder|auditor|signature/i);
     expect(dataProcessing).toContain("paper list");
     // The full notice is one click away, in a new tab.

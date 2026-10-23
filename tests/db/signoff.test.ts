@@ -1,7 +1,6 @@
 // Organisers sign finished events off with the number of people they
 // counted: only the creator (or anyone for events without one), once, for
-// themselves. The sign-off closes sign-ins, counts the optional details into
-// events.stats and clears them in every sign-in.
+// themselves. The sign-off closes sign-ins.
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -13,7 +12,7 @@ import {
   createEvent,
   deleteEvent,
   organiserSession,
-  participantRow,
+  signIn,
 } from "../helpers/local";
 
 let creator: SupabaseClient;
@@ -46,7 +45,7 @@ function signOffAs(client: SupabaseClient, id: string, extra: object = {}) {
     .from("events")
     .update({ headcount: 3, signed_off_at: new Date().toISOString(), signed_off_by: "x", ...extra })
     .eq("id", id)
-    .select("signed_off_at, signed_off_by, headcount, stats")
+    .select("signed_off_at, signed_off_by, headcount")
     .single();
 }
 
@@ -116,12 +115,11 @@ describe("signing off", () => {
         signed_off_at: new Date().toISOString(),
         signed_off_by: ORGANISER.email,
         headcount: 5,
-        stats: { signins: 500 },
       })
-      .select("id, created_by, signed_off_at, headcount, stats")
+      .select("id, created_by, signed_off_at, headcount")
       .single();
     cleanup.push(data!.id);
-    expect(data).toMatchObject({ created_by: ORGANISER.email, signed_off_at: null, headcount: null, stats: null });
+    expect(data).toMatchObject({ created_by: ORGANISER.email, signed_off_at: null, headcount: null });
   });
 
   it("outsiders cannot sign off", async () => {
@@ -134,56 +132,11 @@ describe("signing off", () => {
 });
 
 describe("statistics", () => {
-  it("the sign-off counts the optional details and clears them in every sign-in", async () => {
+  it("events carry no counts an organiser could edit – they live in public.event_stats", async () => {
     const ev = await eventBy(creator);
-    await admin.from("participants").insert([
-      participantRow(ev.id),
-      participantRow(ev.id, { nationality: "DE", university: "LMU", esn_card: true }),
-      participantRow(ev.id, { nationality: null, university: null, exchange_program: null, esn_card: null }),
-    ]);
-
-    const { data, error } = await signOffAs(creator, ev.id);
-    expect(error).toBeNull();
-    expect(data!.stats).toMatchObject({
-      signins: 3,
-      kiosk: 0,
-      nationality: { IT: 1, DE: 1, not_given: 1 },
-      university: { TUM: 1, LMU: 1, not_given: 1 },
-      exchange_program: { "Erasmus+": 2, not_given: 1 },
-      esn_card: { no: 1, yes: 1, not_given: 1 },
-    });
-
-    const { data: rows } = await admin
-      .from("participants")
-      .select("first_name, nationality, university, exchange_program, esn_card")
-      .eq("event_id", ev.id);
-    expect(rows).toHaveLength(3);
-    for (const r of rows!) {
-      expect(r).toMatchObject({ first_name: "Max", nationality: null, university: null, exchange_program: null, esn_card: null });
-    }
+    const { error } = await creator.from("events").update({ stats: { signins: 999 } }).eq("id", ev.id);
+    expect(error).not.toBeNull();
   });
-
-  it("organisers cannot write statistics themselves", async () => {
-    const ev = await eventBy(creator);
-    const { data } = await creator
-      .from("events")
-      .update({ stats: { signins: 999 } })
-      .eq("id", ev.id)
-      .select("stats")
-      .single();
-    expect(data!.stats).toBeNull();
-  });
-
-  it.each(["compute_event_stats", "clear_participant_details", "close_expired_lists"])(
-    "%s cannot be called by visitors or organisers",
-    async (fn) => {
-      const ev = await eventBy(creator);
-      for (const client of [anon, creator]) {
-        const { error } = await client.rpc(fn, fn === "close_expired_lists" ? {} : { event: ev.id });
-        expect(error?.code).toBe("42501");
-      }
-    }
-  );
 });
 
 describe("responsible MESA member", () => {
@@ -218,14 +171,12 @@ describe("responsible MESA member", () => {
 describe("after the sign-off", () => {
   it("no new sign-ins, neither by QR code nor kiosk", async () => {
     const ev = await eventBy(creator);
-    expect((await anon.from("participants").insert(participantRow(ev.id))).error).toBeNull();
+    expect((await signIn(anon, ev.id)).error).toBeNull();
 
     await signOffAs(creator, ev.id);
-    const self = await anon.from("participants").insert(participantRow(ev.id));
+    const self = await signIn(anon, ev.id);
     expect(self.error?.code).toBe("42501");
-    const kiosk = await creator
-      .from("participants")
-      .insert(participantRow(ev.id, { entry_method: "kiosk", recorded_by: ORGANISER.email }));
+    const kiosk = await signIn(creator, ev.id, { kiosk: true });
     expect(kiosk.error?.code).toBe("42501");
 
     const { data } = await admin.from("participants").select("id").eq("event_id", ev.id);

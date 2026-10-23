@@ -1,7 +1,7 @@
 // The public attendance form participants open from the QR code.
 import type { Page } from "@playwright/test";
 import { NOTICE_VERSION, TERMS_VERSION } from "../../lib/legal";
-import { admin, createEvent, deleteEvent, hoursFromNow, signOffEvent } from "../helpers/local";
+import { admin, createEvent, deleteEvent, hoursFromNow, signOffEvent, statsOf } from "../helpers/local";
 import { acceptAndSubmit, expect, fillForm, test } from "./fixtures";
 
 async function rowsFor(eventId: string) {
@@ -22,16 +22,21 @@ test("signs in with the terms version, and nothing like a signature", async ({ p
   expect(row).toMatchObject({
     first_name: "Erika",
     last_name: "Mustermann",
-    nationality: "IT",
-    university: "TUM",
-    exchange_program: "Erasmus+",
-    esn_card: true,
     entry_method: "self",
     recorded_by: null,
     notice_version: NOTICE_VERSION,
     terms_version: TERMS_VERSION,
   });
-  expect(row).not.toHaveProperty("signature");
+  // The answers are only counted for the event, never stored with the name.
+  for (const column of ["nationality", "university", "exchange_program", "esn_card", "signature"]) {
+    expect(row).not.toHaveProperty(column);
+  }
+  expect(await statsOf(event.id)).toEqual({
+    nationality: { IT: 1 },
+    university: { TUM: 1 },
+    exchange_program: { "Erasmus+": 1 },
+    esn_card: { yes: 1 },
+  });
 });
 
 test("the optional questions can be left out or declined", async ({ page, event }) => {
@@ -41,8 +46,13 @@ test("the optional questions can be left out or declined", async ({ page, event 
   await acceptAndSubmit(page);
   await expect(page.getByText("Thank you!")).toBeVisible();
 
-  const [row] = await rowsFor(event.id);
-  expect(row).toMatchObject({ nationality: null, university: null, exchange_program: null, esn_card: null });
+  expect(await rowsFor(event.id)).toHaveLength(1);
+  expect(await statsOf(event.id)).toEqual({
+    nationality: { not_given: 1 },
+    university: { not_given: 1 },
+    exchange_program: { not_given: 1 },
+    esn_card: { not_given: 1 },
+  });
 });
 
 test("security: the form never reads the events table or sees organiser names", async ({ page, event }) => {

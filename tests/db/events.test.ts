@@ -13,7 +13,7 @@ import {
   deleteEvent,
   forgedJwt,
   organiserSession,
-  participantRow,
+  signIn,
   type TestEvent,
 } from "../helpers/local";
 import { CLOSES_AFTER_MS, OPENS_BEFORE_MS } from "@/lib/events/window";
@@ -192,7 +192,7 @@ describe("changing events", () => {
     try {
       // Before any sign-in everything can change.
       expect((await organiser.from("events").update({ risk_notice: "Steep, muddy path." }).eq("id", id)).error).toBeNull();
-      await anon.from("participants").insert(participantRow(id));
+      expect((await signIn(anon, id)).error).toBeNull();
 
       const date = await organiser.from("events").update({ event_date: new Date(0).toISOString() }).eq("id", id);
       expect(date.error?.code).toBe("42501");

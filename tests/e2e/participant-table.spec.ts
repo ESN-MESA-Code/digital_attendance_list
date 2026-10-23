@@ -1,6 +1,6 @@
 // The organiser's participant list: one line per person on a phone, a table
 // elsewhere – names only.
-import { ORGANISER, admin, anonClient, participantRow } from "../helpers/local";
+import { ORGANISER, admin, anonClient, participantRow, signIn } from "../helpers/local";
 import { expect, test } from "./fixtures";
 
 test.beforeEach(async ({ signInAsOrganiser }) => {
@@ -8,11 +8,9 @@ test.beforeEach(async ({ signInAsOrganiser }) => {
 });
 
 test("shows each participant compactly", async ({ page, event }, testInfo) => {
-  await anonClient().from("participants").insert([
-    participantRow(event.id),
-    participantRow(event.id, { first_name: "Maximiliane-Theresa", last_name: "Wolfeschlegelsteinhausen" }),
-    participantRow(event.id, { first_name: "Ana" }),
-  ]);
+  await signIn(anonClient(), event.id);
+  await signIn(anonClient(), event.id, { first_name: "Maximiliane-Theresa", last_name: "Wolfeschlegelsteinhausen" });
+  await signIn(anonClient(), event.id, { first_name: "Ana" });
   // A kiosk sign-in (inserted directly: kiosk rows need an organiser's session).
   await admin
     .from("participants")

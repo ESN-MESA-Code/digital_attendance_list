@@ -6,8 +6,9 @@ interface Props {
   participants: Participant[];
 }
 
-// Names only: the optional details are never readable per person, and there
-// are no signatures. Phones get one line per person, wider screens a table.
+// Names only: the optional answers are only counted, never stored per person,
+// and there are no signatures. Phones get one line per person, wider screens a
+// table.
 
 function KioskBadge({ p, short = false }: { p: Participant; short?: boolean }) {
   if (p.entry_method !== "kiosk") return null;

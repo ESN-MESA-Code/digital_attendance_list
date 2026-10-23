@@ -5,7 +5,7 @@ import type { Breakdown, Event, EventStats } from "@/types";
 
 interface Props {
   event: Event;
-  /** public.event_summary(): counts, plus the breakdown once the list is closed */
+  /** public.event_summary(): the numbers, plus the counts per answer once the list is closed */
   stats: EventStats | null;
 }
 

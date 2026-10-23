@@ -109,21 +109,13 @@ export async function createEvent(
 /** An ISO date `hours` from now (negative: in the past). */
 export const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
 
-/**
- * Signs an event off as the service role (as if its organiser had). The
- * service role skips the trigger that counts and clears the details, so this
- * does it the same way the hourly job would.
- */
+/** Signs an event off as the service role (as if its organiser had). */
 export async function signOffEvent(id: string, headcount = 1, by = ORGANISER.email) {
-  const stats = await admin.rpc("compute_event_stats", { event: id });
-  if (stats.error) throw stats.error;
   const { error } = await admin
     .from("events")
-    .update({ signed_off_at: new Date().toISOString(), signed_off_by: by, headcount, stats: stats.data })
+    .update({ signed_off_at: new Date().toISOString(), signed_off_by: by, headcount })
     .eq("id", id);
   if (error) throw error;
-  const cleared = await admin.rpc("clear_participant_details", { event: id });
-  if (cleared.error) throw cleared.error;
 }
 
 /** Moves an event into the past, so its list is closed (24 hours after it). */
@@ -136,25 +128,51 @@ export async function deleteEvent(id: string) {
   await admin.from("events").delete().eq("id", id);
 }
 
-/** A valid participant row for `eventId` (self sign-in, every optional question answered). */
+/**
+ * A participant row for inserting directly as the service role (`admin`),
+ * e.g. into a closed list. Participants sign in through signIn().
+ */
 export function participantRow(eventId: string, extra: object = {}) {
   return {
     event_id: eventId,
     first_name: "Max",
     last_name: "Mustermann",
-    nationality: "IT",
-    university: "TUM",
-    exchange_program: "Erasmus+",
-    esn_card: false,
     notice_version: "2026-10-23",
     terms_version: "2026-10-23",
     ...extra,
   };
 }
 
-/** The columns organisers may read (not the optional details). */
-export const READABLE_COLUMNS =
-  "id, event_id, first_name, last_name, entry_method, recorded_by, notice_version, terms_version, created_at";
+/** The arguments of public.sign_in() as the form sends them, every optional question answered. */
+export function signInArgs(eventId: string, extra: object = {}) {
+  return {
+    event: eventId,
+    first_name: "Max",
+    last_name: "Mustermann",
+    notice_version: "2026-10-23",
+    terms_version: "2026-10-23",
+    nationality: "IT",
+    university: "TUM",
+    exchange_program: "Erasmus+",
+    esn_card: false,
+    kiosk: false,
+    ...extra,
+  };
+}
+
+/** Signs in to `eventId` through public.sign_in(), as `client` (anonymous visitor or organiser). */
+export function signIn(client: SupabaseClient, eventId: string, extra: object = {}) {
+  return client.rpc("sign_in", signInArgs(eventId, extra));
+}
+
+/** public.event_stats of an event as { question: { answer: total } } (service role). */
+export async function statsOf(eventId: string) {
+  const { data, error } = await admin.from("event_stats").select("question, answer, total").eq("event_id", eventId);
+  if (error) throw error;
+  const out: Record<string, Record<string, number>> = {};
+  for (const r of data ?? []) (out[r.question] ??= {})[r.answer] = r.total;
+  return out;
+}
 
 /**
  * The @supabase/ssr auth cookies for a session on the app's origin, chunked

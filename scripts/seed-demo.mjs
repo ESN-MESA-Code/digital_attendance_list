@@ -49,27 +49,43 @@ async function main() {
       .single();
     if (error) throw error;
 
-    // Participants for all but the upcoming event.
+    // Participants for all but the upcoming event. Inserted directly (past
+    // lists take no sign-ins any more), with the counts sign_in() would keep.
     if (new Date(e.event_date).getTime() < Date.now() + 3_600_000) {
-      const rows = people.map(([first_name, last_name, nationality, university, exchange_program, esn_card]) => ({
-        event_id: event.id, first_name, last_name, nationality, university, exchange_program, esn_card,
+      const rows = people.map(([first_name, last_name]) => ({
+        event_id: event.id, first_name, last_name,
         notice_version: "2026-10-23", terms_version: "2026-10-23", entry_method: "self", recorded_by: null,
       }));
       rows.push({ ...rows[0], first_name: "Kim", last_name: "Kiosk", entry_method: "kiosk", recorded_by: ORGANISER });
       const { error: pErr } = await db.from("participants").insert(rows);
       if (pErr) throw pErr;
+
+      const answers = [...people, people[0]].map(([, , nationality, university, exchange_program, esn_card]) => ({
+        nationality: nationality ?? "not_given",
+        university: university ?? "not_given",
+        exchange_program: exchange_program ?? "not_given",
+        esn_card: esn_card === null ? "not_given" : esn_card ? "yes" : "no",
+      }));
+      const totals = new Map();
+      for (const a of answers) {
+        for (const [question, answer] of Object.entries(a)) {
+          const key = `${question}|${answer}`;
+          totals.set(key, (totals.get(key) ?? 0) + 1);
+        }
+      }
+      const stats = [...totals].map(([key, total]) => {
+        const [question, answer] = key.split("|");
+        return { event_id: event.id, question, answer, total };
+      });
+      const { error: sErr } = await db.from("event_stats").insert(stats);
+      if (sErr) throw sErr;
     }
 
-    // As the app would on a sign-off: count, record, clear the optional details.
     if (signoff) {
-      const { data: stats } = await db.rpc("compute_event_stats", { event: event.id });
-      await db.from("events").update({ signed_off_at: hours(-24 * 6), signed_off_by: ORGANISER, headcount: signoff, stats }).eq("id", event.id);
-      await db.rpc("clear_participant_details", { event: event.id });
+      await db.from("events").update({ signed_off_at: hours(-24 * 6), signed_off_by: ORGANISER, headcount: signoff }).eq("id", event.id);
     }
     console.log(`  ${event.title.padEnd(24)} form: http://localhost:3000/event/${event.public_token}`);
   }
-  // The closed-but-not-signed-off event gets counted like the hourly job does.
-  await db.rpc("close_expired_lists");
   console.log(`Replaced ${old.data.length} demo events with ${events.length}.`);
 }
 

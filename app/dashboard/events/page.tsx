@@ -11,6 +11,7 @@ import type { Event } from "@/types";
 export default function EventsDashboard() {
   const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
+  const [signins, setSignins] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -27,11 +28,18 @@ export default function EventsDashboard() {
       if (!error && data) setEvents(data as Event[]);
       setLoading(false);
     }
+    // Numbers only – names of closed lists are for executives.
+    async function fetchSignins() {
+      const { data } = await supabase.rpc("event_signin_counts");
+      const rows = (data ?? []) as Array<{ event_id: string; signins: number }>;
+      setSignins(Object.fromEntries(rows.map((r) => [r.event_id, r.signins])));
+    }
     async function fetchUser() {
       const { data } = await supabase.auth.getUser();
       setUserEmail(data.user?.email?.toLowerCase() ?? null);
     }
     fetchEvents();
+    fetchSignins();
     fetchUser();
   }, []);
 
@@ -101,11 +109,11 @@ export default function EventsDashboard() {
         <div className="space-y-6">
           <section aria-labelledby="your-events" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 id="your-events" className="text-lg font-semibold mb-4">Your events</h2>
-            <EventList events={myEvents} emptyText="You haven't created any events yet." />
+            <EventList events={myEvents} signins={signins} emptyText="You haven't created any events yet." />
           </section>
           <section aria-labelledby="all-events" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 id="all-events" className="text-lg font-semibold mb-4">All events</h2>
-            <EventList events={otherEvents} emptyText="No other events." />
+            <EventList events={otherEvents} signins={signins} emptyText="No other events." />
           </section>
         </div>
       )}

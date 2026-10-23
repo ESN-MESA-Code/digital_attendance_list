@@ -91,7 +91,7 @@ interface Props {
    * (the device is shared) and the form starts over after each sign-in.
    */
   kiosk?: {
-    /** Email of the signed-in organiser */
+    /** Email of the signed-in organiser (shown; the database records it from the session) */
     recordedBy: string;
     /** Called when the next person may sign in */
     onNext: () => void;
@@ -186,25 +186,26 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
     };
 
     try {
-      // No .select(): participants cannot (and must not) read rows back.
-      const { error: insertError } = await supabase.from("participants").insert({
-        event_id: event.id,
+      // public.sign_in() stores the name and counts the optional answers for
+      // the event's statistics – they are never stored with the name.
+      const { error: insertError } = await supabase.rpc("sign_in", {
+        event: event.id,
         first_name: details.first_name,
         last_name: details.last_name,
+        // What this person was shown and accepted (Art. 5(2) GDPR, § 305(2) BGB).
+        notice_version: NOTICE_VERSION,
+        terms_version: TERMS_VERSION,
         // Optional answers: null when left out.
         nationality: details.nationality || null,
         university: details.university || null,
         exchange_program: details.exchange_program || null,
         esn_card: details.esn_card ? details.esn_card === "yes" : null,
-        // What this person was shown and accepted (Art. 5(2) GDPR, § 305(2) BGB).
-        notice_version: NOTICE_VERSION,
-        terms_version: TERMS_VERSION,
-        // Self sign-ins rely on the column defaults ('self', null).
-        ...(kiosk && { entry_method: "kiosk", recorded_by: kiosk.recordedBy }),
+        // Recorded under the signed-in organiser's email by the database.
+        kiosk: isKiosk,
       });
 
       if (insertError) {
-        // RLS refuses sign-ins outside the window or after the sign-off.
+        // Refused outside the window or after the sign-off.
         if (insertError.code === "42501") {
           if (Date.now() < new Date(event.opens_at).getTime()) setNotOpenYet(true);
           else setClosed(true);
@@ -247,7 +248,7 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
                 {usedSaved ? "Keep your details saved for next time?" : "Save your details for next time?"}
               </h3>
               <p className="text-xs text-gray-500 mt-1">
-                We can store your name and the optional details you gave in this browser on this
+                We can store your name and the optional answers you gave in this browser on this
                 device, so the form is filled in automatically at the next event.
                 {usedSaved
                   ? " “No, thanks” removes the details saved earlier."
@@ -395,8 +396,8 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
             <fieldset className="rounded-lg border border-gray-200 p-4 space-y-4">
               <legend className="px-1 text-sm font-semibold text-gray-700">Optional</legend>
               <p className="text-xs text-gray-500 -mt-2">
-                For anonymous statistics only: counted when the list closes, then deleted from
-                your entry.
+                For anonymous statistics only: we count your answers for this event and never
+                store them with your name.
               </p>
 
               {/* Nationality – type to search, validated against the list */}

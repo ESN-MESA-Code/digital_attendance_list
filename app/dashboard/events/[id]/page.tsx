@@ -237,8 +237,8 @@ export default function EventDetailPage() {
                 <div>
                   <h2 className="text-sm font-semibold text-gray-900">Finish the event and sign the list off</h2>
                   <p className="text-xs text-gray-600 mt-1">
-                    After the sign-off nobody can sign in any more. The optional details are counted
-                    and removed from the sign-ins, and only executives see the names from then on.
+                    After the sign-off nobody can sign in any more, and only executives see the
+                    names from then on.
                   </p>
                 </div>
                 <label className="block">

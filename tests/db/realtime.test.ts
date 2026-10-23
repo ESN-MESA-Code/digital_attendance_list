@@ -1,5 +1,5 @@
 // Security: live updates on the dashboard follow the same rules as reads –
-// only organisers receive new sign-ins, without the optional details.
+// only organisers receive new sign-ins.
 import { afterAll, beforeAll, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -9,7 +9,7 @@ import {
   deleteEvent,
   forgedJwt,
   organiserSession,
-  participantRow,
+  signIn,
   type TestEvent,
 } from "../helpers/local";
 
@@ -49,12 +49,12 @@ async function listen(client: SupabaseClient) {
   return received;
 }
 
-it("only organisers receive new sign-ins, names but not the optional details", async () => {
+it("only organisers receive new sign-ins, names but no answers", async () => {
   const organiser = await listen(await clientAs((await organiserSession()).access_token));
   const anon = await listen(anonClient());
   const outsider = await listen(await clientAs(forgedJwt("someone@gmail.com")));
 
-  const { error } = await anonClient().from("participants").insert(participantRow(event.id, { first_name: "Live" }));
+  const { error } = await signIn(anonClient(), event.id, { first_name: "Live" });
   expect(error).toBeNull();
 
   await expect.poll(() => organiser.length, { timeout: 15_000 }).toBe(1);

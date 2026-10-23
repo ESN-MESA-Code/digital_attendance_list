@@ -38,8 +38,9 @@ lists, so **funded events (trips, team building) keep the paper list**; the app 
 3. The organiser sees the names live while the list is open. After the event the creator
    signs the list off with the number of people they counted. The list also closes by itself
    24 hours after the event.
-4. When the list closes, the optional details are counted and deleted from every sign-in.
-   From then on only executives see the names; everyone sees the counts.
+4. The optional answers are never stored with a name: each sign-in only adds 1 to the event's
+   count per answer. Once the list is closed, only executives see the names; everyone sees
+   the numbers and counts.
 5. Finance opens the event page to check that the event took place before reimbursing the
    organiser.
 
@@ -52,15 +53,16 @@ lists, so **funded events (trips, team building) keep the paper list**; the app 
 | | |
 | --- | --- |
 | Data subjects | Event participants, mostly international students in Munich |
-| Data | First and last name; time of sign-in; entry method (own device / organiser's device) and, for kiosk sign-ins, the organiser's email; versions of the data processing notice and of the participation terms shown. **Optional:** nationality (ISO country code), university (LMU / TUM / Other), exchange programme (Erasmus+ / LMUexchange / Full-time degree / Other), ESNcard yes/no – cleared when the list closes |
+| Data | First and last name; time of sign-in; entry method (own device / organiser's device) and, for kiosk sign-ins, the organiser's email; versions of the data processing notice and of the participation terms shown |
+| Only counted | The optional answers – nationality (ISO country code), university (LMU / TUM / Other), exchange programme (Erasmus+ / LMUexchange / Full-time degree / Other), ESNcard yes/no. `public.sign_in()` adds 1 per answer to `public.event_stats` (event, question, answer, total) and never stores them with the sign-in. The counts hold no personal data |
 | Not collected | Signatures, email, phone, address, date of birth, student ID, photos, IP address in the database, location |
 | Purposes | (a) Proof that the participant accepted the participation terms and defence against legal claims from the event; (b) proof towards finance that the event took place (counts only); (c) anonymous statistics for planning and reports |
 | Legal basis | (a) **Performance of the participation agreement**, Art. 6(1)(b) GDPR, and **legitimate interest** in proving what was agreed, Art. 6(1)(f); (b) and (c) **legitimate interest**, Art. 6(1)(f) (balancing test in section 2.1a). No consent checkbox. Information in [`form-data-processing.en.md`](form-data-processing.en.md) on the form ([`components/AttendanceForm.tsx`](../components/AttendanceForm.tsx)) |
 | Proof (Art. 5(2) GDPR, § 305(2) BGB) | Each row stores `notice_version`, `terms_version` and `created_at`; the database refuses rows without them ([migration](../supabase/migrations/20261023000000_regular_events.sql)). The texts of every version are in the git history |
-| Obligation to provide | None by law. Name and acceptance of the terms are needed to take part; whoever does not want to sign in digitally can sign a paper list. The optional details can be left out or declined ("Prefer not to say") |
+| Obligation to provide | None by law. Name and acceptance of the terms are needed to take part; whoever does not want to sign in digitally can sign a paper list. The optional questions can be left out or declined ("Prefer not to say") |
 | Objection (Art. 21) | By email to info@esnmesa.org; the entry is deleted unless it is needed for legal claims (e.g. after an incident at that event) – the person is told (procedure in section 6) |
 | Recipients | MESA organisers (Workspace accounts) see names while the list is open; executives always; finance and organisers the counts; processors in section 4 |
-| Retention | Until the end of the third calendar year after the event, then deleted automatically (section 5); the optional details already when the list closes; earlier after a successful objection |
+| Retention | Until the end of the third calendar year after the event, then deleted automatically with the event's counts (section 5); earlier after a successful objection |
 | Special categories (Art. 9) | None. Nationality is not an Art. 9 category |
 
 ### 2.1a Balancing of interests (Art. 6(1)(f))
@@ -68,9 +70,9 @@ lists, so **funded events (trips, team building) keep the paper list**; the app 
 | | |
 | --- | --- |
 | Our interest | Being able to prove that participants accepted the participation terms (incl. the liability clause and the event's risk notice) if a claim is raised; proper accounts – finance reimburses organisers only for events that took place; planning events from anonymous statistics |
-| Necessity | Name, time and terms version are the minimum that proves who accepted which terms. The optional details are needed only as counts, so they are never readable per person, counted when the list closes and then deleted. Finance needs counts, not names. Names are needed after the event only if something happens – so only executives see them then |
+| Necessity | Name, time and terms version are the minimum that proves who accepted which terms. The optional answers are needed only as counts, so only counts are stored. Finance needs numbers, not names. Names are needed after the event only if something happens – so only executives see them then |
 | Participants' interests | Names could be misused if leaked; nationality could reveal origin. Participants reasonably expect an attendance list at an organised event |
-| Safeguards | Optional details unreadable per person (column privileges) and cleared at close; names for non-executive organisers only while the list is open (RLS); participants never see each other's entries; sign-ins only inside the event's window; fixed retention with automatic deletion; no signatures, exports or printouts; no use for marketing; right to object at any time; measures in section 7 |
+| Safeguards | Optional answers only counted, never stored with a name; counts per answer shown only once the list is closed, so they cannot be matched with names appearing live; names for non-executive organisers only while the list is open (RLS); participants never see each other's entries; sign-ins only inside the event's window; fixed retention with automatic deletion; no signatures, exports or printouts; no use for marketing; right to object at any time; measures in section 7 |
 | Result | The interests of the association prevail. Reassess if the purpose, the fields or the circle of recipients change |
 
 Why not consent: participation needs the acceptance of the terms anyway, and a withdrawal
@@ -80,7 +82,7 @@ would delete exactly the proof the list exists for.
 
 | | |
 | --- | --- |
-| Data | Name and any optional details the participant gave |
+| Data | Name and any optional answers the participant gave |
 | Where | Only in the participant's browser: `localStorage`, key `mesa_attendance_details`, ignored and removed after 12 months. Never sent to the server ([`lib/savedDetails.ts`](../lib/savedDetails.ts)) |
 | Purpose | Pre-filling the form at the next event |
 | Legal basis | Consent, § 25(1) TDDDG (storage on the device) and Art. 6(1)(a) GDPR: only saved after clicking "Save my details" on the thank-you screen |
@@ -112,7 +114,7 @@ would delete exactly the proof the list exists for.
 
 Finance (and every organiser) sees on the event page: title, date, responsible organiser,
 sign-off (who, when), headcount, number of sign-ins, kiosk sign-ins, the time range of the
-sign-ins and – once the list is closed – the breakdown by university, programme, ESNcard and
+sign-ins and – once the list is closed – the counts by university, programme, ESNcard and
 nationality ([`components/EventSummary.tsx`](../components/EventSummary.tsx),
 `public.event_summary()`). Organisers share the page's link ("Copy link for finance"); it
 opens only with an `@esnmesa.org` account that accepted the confidentiality rules. There are
@@ -126,8 +128,9 @@ no exports or printouts.
 Participant's phone ──HTTPS──▶ Vercel (Next.js, EU) ──▶ page only, no personal data stored
         │
         └──HTTPS (Supabase API, anon key)──▶ Supabase Postgres, Frankfurt
-                                               INSERT participants (RLS: insert only,
-                                               inside the window, never read back)
+                                               public.sign_in(): one participants row
+                                               (name, terms), +1 per answer in event_stats;
+                                               only inside the window, never read back
 
 Organiser's browser ──Google Workspace login──▶ Supabase Auth (Google OAuth, hd=esnmesa.org)
         │
@@ -167,8 +170,8 @@ protection documents as evidence (Art. 5(2)).
 
 | What | When deleted | How |
 | --- | --- | --- |
-| Optional details of a sign-in (nationality, university, programme, ESNcard) | When the list closes: at the sign-off, or within an hour after the window ends (24 hours after the event) | The sign-off trigger and the hourly `pg_cron` job `close-expired-lists` count them into `events.stats` and clear them (`public.compute_event_stats()`, `public.clear_participant_details()`) |
-| Events and their sign-ins | End of the third calendar year after the event (event in 2026 → 31 Dec 2029) | Nightly `pg_cron` job `delete-expired-events` (03:30 UTC) runs `public.delete_expired_events()`; participants are deleted with their event (`on delete cascade`) ([migration](../supabase/migrations/20261023000000_regular_events.sql), tested in [`tests/db/retention.test.ts`](../tests/db/retention.test.ts)) |
+| Optional answers | Never stored with a sign-in – only counted | `public.sign_in()` |
+| Events, their sign-ins and counts | End of the third calendar year after the event (event in 2026 → 31 Dec 2029) | Nightly `pg_cron` job `delete-expired-events` (03:30 UTC) runs `public.delete_expired_events()`; sign-ins and counts are deleted with their event (`on delete cascade`) ([migration](../supabase/migrations/20261023000000_regular_events.sql), tested in [`tests/db/retention.test.ts`](../tests/db/retention.test.ts)) |
 | Events with an incident | Until the matter is settled | Manually: before the deletion, an admin copies the event's sign-ins (SQL, section 6) into the incident file, which is deleted once the matter is settled |
 | Executives | When they leave the Google group | Daily sync (`replace_executives()`) or at their next login (`set_executive()`) |
 | Acceptances of the confidentiality rules | End of the fifth calendar year after acceptance (the organiser is then asked again) | Nightly `pg_cron` job `delete-expired-acknowledgements` (03:50 UTC) |
@@ -209,8 +212,8 @@ delete from participants where id in ('<id>', '<id>');
 update participants set last_name = 'Musterfrau' where id = '<id>';
 ```
 
-Deleting a sign-in does not change the event's stored counts (`events.stats`), which hold no
-personal data. Deleted rows remain in Supabase's backups until these rotate out; they are not
+Deleting a sign-in does not change the event's counts (`event_stats`), which hold no personal
+data and cannot be traced back to anyone. Deleted rows remain in Supabase's backups until these rotate out; they are not
 restored from there. Portability (Art. 20) applies to data processed on contract – the name,
 time and terms version of each sign-in; export those columns of the query result as CSV. The
 saved details (consent) are on the participant's own device.
@@ -235,14 +238,16 @@ E.g. a leaked service role or service account key, a lost unlocked organiser dev
 - Organiser area and kiosk require a Google login with an `@esnmesa.org` Workspace account;
   checked on the server (`hd` claim and email domain, [`lib/auth.ts`](../lib/auth.ts),
   [`proxy.ts`](../proxy.ts)) and again in the database.
-- Row Level Security on all tables: anyone may **insert** a sign-in inside the event's window
-  (2 hours before to 24 hours after, not after the sign-off); Workspace members **read the
-  names** of open lists, executives (`public.is_executive()`) of all lists; nobody may update
-  participant rows; events are readable by Workspace members only. Nobody may **delete**
-  events or sign-ins through the API – only the retention job and admins in SQL. A trigger
-  rejects sign-ups from other domains.
-- **Column privileges:** the optional details are not readable through the API at all – not
-  even by organisers or executives. Only `public.compute_event_stats()` counts them.
+- Row Level Security on all tables: anyone may **sign in** through `public.sign_in()` inside
+  the event's window (2 hours before to 24 hours after, not after the sign-off) – nobody
+  inserts into `participants` directly; Workspace members **read the names** of open lists,
+  executives (`public.is_executive()`) of all lists; nobody may update participant rows;
+  events are readable by Workspace members only. Nobody may **delete** events or sign-ins
+  through the API – only the retention job and admins in SQL. A trigger rejects sign-ups from
+  other domains.
+- **Counts:** `public.event_stats` is not readable or writable through the API; only
+  `public.sign_in()` adds to it and `public.event_summary()` reports it, per answer only once
+  the list is closed.
 - Executives are whoever the Google group lists; the table is written only by the app's
   server (service role) and not readable through the API.
 - Confidentiality before access: on first login every organiser must accept the rules in
@@ -252,8 +257,8 @@ E.g. a leaked service role or service account key, a lost unlocked organiser dev
   acceptance of the current version. A new text version means everyone accepts again.
 - What participants accepted cannot be changed afterwards: once someone signed in, the event
   date and risk notice are fixed (trigger `guard_event_writes()`); the sign-off (who, when,
-  headcount) is recorded by the database and final; the statistics are written by the
-  database only.
+  headcount) is recorded by the database and final; the counts are written by
+  `public.sign_in()` only.
 - The service role key and the service account key are used only server-side and kept only
   in the hosting environment (never in the repository or logs); they are rotated if they may
   have leaked. The cron route needs `CRON_SECRET`.
@@ -275,8 +280,8 @@ E.g. a leaked service role or service account key, a lost unlocked organiser dev
 **Data minimisation and privacy by default**
 - No signatures, no email or contact data from participants; no exports, printouts or
   downloads; no tracking, analytics or ads; no external fonts, scripts or profile pictures.
-- The optional details are optional ("Prefer not to say"), never shown per person, and
-  deleted when the list closes. The breakdown is shown only once the names are hidden from
+- The optional questions are optional ("Prefer not to say") and only counted – never stored
+  with a name. The counts per answer are shown only once the names are hidden from
   non-executive organisers.
 - Saved details are opt-in, stay in the browser and are never sent to the server.
 - Kiosk mode never stores or pre-fills anyone's details, and tells the browser not to
@@ -325,8 +330,7 @@ E.g. a leaked service role or service account key, a lost unlocked organiser dev
 
 Assessment: **not required.** No special categories, no profiling or automated decisions,
 no systematic monitoring, no new technologies with high risk, moderate scale (a few
-thousand sign-ins a year, kept for three years, optional details only until the list
-closes). The processing is not on the BayLDA list of operations that require a DPIA. Main
+thousand sign-ins a year, kept for three years; the optional answers only as counts). The processing is not on the BayLDA list of operations that require a DPIA. Main
 risk – exposure of names – is mitigated by the measures in section 7.
 
 ---

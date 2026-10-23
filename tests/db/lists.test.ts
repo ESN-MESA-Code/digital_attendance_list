@@ -1,12 +1,11 @@
 // The life of a list: sign-ins only inside the window (2 hours before the
 // event until 24 hours after), names for organisers while it is open and for
-// executives always, counts for everyone, and the optional details counted
-// and cleared when it closes.
+// executives always, numbers for everyone, and the counts per answer once the
+// list is closed.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   EXECUTIVE,
-  READABLE_COLUMNS,
   admin,
   anonClient,
   clientAs,
@@ -16,7 +15,7 @@ import {
   forgedJwt,
   hoursFromNow,
   organiserSession,
-  participantRow,
+  signIn,
 } from "../helpers/local";
 
 let organiser: SupabaseClient;
@@ -32,6 +31,7 @@ afterAll(async () => {
   for (const id of cleanup) await deleteEvent(id);
 });
 
+/** An event starting `hours` from now (negative: in the past). */
 async function eventAt(hours: number) {
   const ev = await createEvent(undefined, null, { event_date: hoursFromNow(hours) });
   cleanup.push(ev.id);
@@ -39,7 +39,7 @@ async function eventAt(hours: number) {
 }
 
 const names = async (client: SupabaseClient, eventId: string) =>
-  (await client.from("participants").select(READABLE_COLUMNS).eq("event_id", eventId)).data ?? [];
+  (await client.from("participants").select("first_name").eq("event_id", eventId)).data ?? [];
 
 describe("the sign-in window", () => {
   // [when, the event starts this many hours from now, sign-in allowed]
@@ -51,7 +51,7 @@ describe("the sign-in window", () => {
     ["not later than 24 hours after", -24.1, false],
   ])("sign-ins work %s", async (_, hours, allowed) => {
     const ev = await eventAt(hours);
-    const { error } = await anon.from("participants").insert(participantRow(ev.id));
+    const { error } = await signIn(anon, ev.id);
     if (allowed) expect(error).toBeNull();
     else expect(error?.code).toBe("42501");
   });
@@ -70,25 +70,22 @@ describe("the sign-in window", () => {
 describe("who sees the names", () => {
   it("organisers and executives while the list is open", async () => {
     const ev = await eventAt(0);
-    await anon.from("participants").insert(participantRow(ev.id, { first_name: "Open" }));
-    expect(await names(organiser, ev.id)).toHaveLength(1);
-    expect(await names(executive, ev.id)).toHaveLength(1);
+    await signIn(anon, ev.id, { first_name: "Open" });
+    expect(await names(organiser, ev.id)).toEqual([{ first_name: "Open" }]);
+    expect(await names(executive, ev.id)).toEqual([{ first_name: "Open" }]);
   });
 
   it("only executives once the list is closed", async () => {
     const ev = await eventAt(0);
-    await anon.from("participants").insert(participantRow(ev.id, { first_name: "Closed" }));
+    await signIn(anon, ev.id, { first_name: "Closed" });
     await closeList(ev.id);
     expect(await names(organiser, ev.id)).toEqual([]);
-    const seen = await names(executive, ev.id);
-    expect(seen).toHaveLength(1);
-    expect(seen[0].first_name).toBe("Closed");
+    expect(await names(executive, ev.id)).toEqual([{ first_name: "Closed" }]);
   });
 
   it("only executives once the list is signed off", async () => {
-    const ev = await createEvent(undefined, null);
-    cleanup.push(ev.id);
-    await anon.from("participants").insert(participantRow(ev.id));
+    const ev = await eventAt(0);
+    await signIn(anon, ev.id);
     const { error } = await organiser.from("events").update({ headcount: 1 }).eq("id", ev.id);
     expect(error).toBeNull();
     expect(await names(organiser, ev.id)).toEqual([]);
@@ -105,21 +102,35 @@ describe("who sees the names", () => {
 });
 
 describe("event_summary", () => {
-  it("gives organisers the counts of an open list, without the breakdown", async () => {
+  it("gives organisers the numbers of an open list, but no counts per answer yet", async () => {
     const ev = await eventAt(0);
-    await anon.from("participants").insert([participantRow(ev.id), participantRow(ev.id, { nationality: "FR" })]);
+    await signIn(anon, ev.id);
+    await signIn(organiser, ev.id, { nationality: "FR", kiosk: true });
     const { data, error } = await organiser.rpc("event_summary", { event: ev.id });
     expect(error).toBeNull();
-    expect(data).toMatchObject({ signins: 2, kiosk: 0 });
+    expect(data).toMatchObject({ signins: 2, kiosk: 1 });
+    expect(data.first_signin).toEqual(expect.any(String));
     expect(data).not.toHaveProperty("nationality");
   });
 
-  it("adds the breakdown once the list is closed", async () => {
+  it("adds the counts per answer once the list is closed", async () => {
     const ev = await eventAt(0);
-    await anon.from("participants").insert([participantRow(ev.id), participantRow(ev.id, { nationality: "FR" })]);
+    await signIn(anon, ev.id);
+    await signIn(anon, ev.id, { nationality: "FR", university: null });
     await closeList(ev.id);
     const { data } = await organiser.rpc("event_summary", { event: ev.id });
-    expect(data).toMatchObject({ signins: 2, nationality: { IT: 1, FR: 1 }, university: { TUM: 2 } });
+    expect(data).toMatchObject({
+      signins: 2,
+      nationality: { IT: 1, FR: 1 },
+      university: { TUM: 1, not_given: 1 },
+      esn_card: { no: 2 },
+    });
+  });
+
+  it("is empty for a list without sign-ins", async () => {
+    const ev = await eventAt(-25);
+    const { data } = await organiser.rpc("event_summary", { event: ev.id });
+    expect(data).toEqual({ signins: 0, kiosk: 0, first_signin: null, last_signin: null });
   });
 
   it("tells visitors and outsiders nothing", async () => {
@@ -131,42 +142,19 @@ describe("event_summary", () => {
   });
 });
 
-describe("close_expired_lists()", () => {
-  it("counts and clears lists that closed without a sign-off, and leaves open ones alone", async () => {
-    const open = await eventAt(0);
-    const closed = await eventAt(0);
-    await admin.from("participants").insert([participantRow(open.id), participantRow(closed.id)]);
-    await closeList(closed.id);
-
-    const { error } = await admin.rpc("close_expired_lists");
-    expect(error).toBeNull();
-
-    const { data: events } = await admin.from("events").select("id, stats, signed_off_at").in("id", [open.id, closed.id]);
-    const byId = Object.fromEntries(events!.map((e) => [e.id, e]));
-    expect(byId[open.id].stats).toBeNull();
-    expect(byId[closed.id].stats).toMatchObject({ signins: 1, nationality: { IT: 1 } });
-    // Closing is not a sign-off: the organiser still enters the headcount.
-    expect(byId[closed.id].signed_off_at).toBeNull();
-
-    const { data: rows } = await admin.from("participants").select("event_id, nationality").in("event_id", [open.id, closed.id]);
-    expect(rows!.find((r) => r.event_id === open.id)!.nationality).toBe("IT");
-    expect(rows!.find((r) => r.event_id === closed.id)!.nationality).toBeNull();
+describe("event_signin_counts", () => {
+  it("gives organisers the number of sign-ins per event, also for closed lists", async () => {
+    const ev = await eventAt(0);
+    await signIn(anon, ev.id);
+    await signIn(anon, ev.id);
+    await closeList(ev.id);
+    const { data } = await organiser.rpc("event_signin_counts");
+    expect(data).toContainEqual({ event_id: ev.id, signins: 2 });
   });
 
-  it("keeps the counts when the organiser signs off afterwards", async () => {
-    const ev = await createEvent(undefined, null, { event_date: hoursFromNow(-1) });
-    cleanup.push(ev.id);
-    await admin.from("participants").insert(participantRow(ev.id, { nationality: "ES" }));
-    await closeList(ev.id);
-    await admin.rpc("close_expired_lists");
-    const { data, error } = await organiser
-      .from("events")
-      .update({ headcount: 1 })
-      .eq("id", ev.id)
-      .select("stats")
-      .single();
-    expect(error).toBeNull();
-    expect(data!.stats).toMatchObject({ nationality: { ES: 1 } });
+  it("gives visitors nothing", async () => {
+    const { data } = await anon.rpc("event_signin_counts");
+    expect(data ?? []).toEqual([]);
   });
 });
 

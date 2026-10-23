@@ -12,8 +12,8 @@ export function canSignOff(event: Event, email: string | null): boolean {
 
 /**
  * Signs the list off with the number of people the organiser counted. Closes
- * sign-ins; the database records who and when, counts the answers and clears
- * the optional details.
+ * sign-ins (from then on only executives see the names); the database
+ * records who and when.
  */
 export async function signOff(event: Event, headcount: number, email: string): Promise<Event> {
   const { data, error } = await supabase
