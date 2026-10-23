@@ -3,21 +3,6 @@ import { forgetSavedDetails, loadSavedDetails, saveDetails, type SavedDetails } 
 
 const KEY = "mesa_attendance_details";
 
-// Minimal browser cookie jar: enough of document.cookie for the old-cookie migration.
-class CookieJar {
-  jar = new Map<string, string>();
-  get cookie() {
-    return [...this.jar].map(([k, v]) => `${k}=${v}`).join("; ");
-  }
-  set cookie(line: string) {
-    const [pair, ...attrs] = line.split("; ");
-    const i = pair.indexOf("=");
-    const name = pair.slice(0, i);
-    if (attrs.some((a) => a === "Max-Age=0")) this.jar.delete(name);
-    else this.jar.set(name, pair.slice(i + 1));
-  }
-}
-
 // Minimal localStorage.
 class MemoryStorage {
   items = new Map<string, string>();
@@ -41,16 +26,13 @@ const details: SavedDetails = {
   esn_card: "yes",
 };
 
-let jar: CookieJar;
 let store: MemoryStorage;
 beforeEach(() => {
-  jar = new CookieJar();
   store = new MemoryStorage();
-  Object.assign(globalThis, { document: jar, localStorage: store });
+  Object.assign(globalThis, { localStorage: store });
 });
 afterEach(() => {
   vi.useRealTimers();
-  delete (globalThis as Record<string, unknown>).document;
   delete (globalThis as Record<string, unknown>).localStorage;
 });
 
@@ -60,10 +42,15 @@ describe("saved details", () => {
     expect(loadSavedDetails()).toEqual(details);
   });
 
-  it("are stored in localStorage, never in a cookie", () => {
+  it("are stored in localStorage", () => {
     saveDetails(details);
     expect(store.items.has(KEY)).toBe(true);
-    expect(jar.cookie).toBe("");
+  });
+
+  it("keep optional answers that were left out", () => {
+    const partial: SavedDetails = { ...details, nationality: "", university: "", exchange_program: "", esn_card: "" };
+    saveDetails(partial);
+    expect(loadSavedDetails()).toEqual(partial);
   });
 
   it("returns null when nothing is saved", () => {
@@ -90,13 +77,6 @@ describe("saved details", () => {
     vi.setSystemTime(new Date("2027-01-02T00:00:00Z"));
     expect(loadSavedDetails()).toBeNull();
     expect(store.items.has(KEY)).toBe(false);
-  });
-
-  it("moves details from the old cookie to localStorage and deletes the cookie", () => {
-    jar.jar.set(KEY, encodeURIComponent(JSON.stringify(details)));
-    expect(loadSavedDetails()).toEqual(details);
-    expect(jar.cookie).toBe("");
-    expect(store.items.has(KEY)).toBe(true);
   });
 
   it("works without localStorage (blocked site data)", () => {

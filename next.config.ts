@@ -1,13 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Files read from disk at runtime must be in the serverless bundle: the
-  // bundled Liberation Sans fonts for the PDF routes, the legal texts for
-  // the attendance forms.
+  // Files read from disk at runtime must be in the serverless bundle: pages
+  // rendered on request read their legal texts from legal/*.md.
   outputFileTracingIncludes: {
-    "/api/export/event/[id]/pdf": ["./lib/pdf/fonts/*.ttf"],
-    "/api/export/events/pdf": ["./lib/pdf/fonts/*.ttf"],
-    // Pages rendered on request read their legal texts from legal/*.md.
     "/event/[token]": ["./legal/*.md"],
     "/kiosk/[id]": ["./legal/*.md"],
     "/confidentiality": ["./legal/*.md"],

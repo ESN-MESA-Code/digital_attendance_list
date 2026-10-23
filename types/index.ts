@@ -1,61 +1,79 @@
 export interface Event {
   id: string;
   title: string;
-  description: string;
   event_date: string;
+  /** The creator's name (Google account), set by the database */
   responsible_member: string | null;
-  lei_responsible: string | null;
   public_token: string;
-  /** Email of the organiser who created the event (null for older events) */
+  /** Email of the organiser who created the event (null for events inserted with the service role) */
   created_by: string | null;
-  /** When the printed list was put into the office folder (null: not yet) */
-  filed_at: string | null;
-  /** Email of the organiser who marked it as filed */
-  filed_by: string | null;
+  /** Shown to participants above the terms; fixed once someone signed in */
+  risk_notice: string | null;
   /** When the creator signed the list off; closes the event for sign-ins */
   signed_off_at: string | null;
   /** Email of the organiser who signed it off */
   signed_off_by: string | null;
-  /** The organiser's signature, a small PNG data URL like participants' */
-  organiser_signature: string | null;
+  /** People the organiser counted, entered with the sign-off */
+  headcount: number | null;
   created_at: string;
 }
 
-/** What the public attendance form may know about an event (get_public_event). */
-export type PublicEvent = Pick<Event, "id" | "title" | "description" | "event_date"> & {
-  /** Signed off: no more sign-ins */
-  closed: boolean;
-};
+/** Counts per answer; "not_given" where someone left a question out. */
+export type Breakdown = Record<string, number>;
 
+/**
+ * What public.event_summary() returns: the numbers, and once the list is
+ * closed the counts per answer (from public.event_stats).
+ */
+export interface EventStats {
+  signins: number;
+  /** Sign-ins on an organiser's device */
+  kiosk: number;
+  first_signin: string | null;
+  last_signin: string | null;
+  nationality?: Breakdown;
+  university?: Breakdown;
+  exchange_program?: Breakdown;
+  esn_card?: Breakdown;
+}
+
+/** What the public attendance form may know about an event (get_public_event). */
+export interface PublicEvent {
+  id: string;
+  title: string;
+  event_date: string;
+  risk_notice: string | null;
+  /** Sign-ins are possible from … */
+  opens_at: string;
+  /** … until (unless signed off earlier) */
+  closes_at: string;
+  /** Signed off or past closes_at: no more sign-ins */
+  closed: boolean;
+}
+
+/**
+ * A sign-in as organisers can read it. The optional answers (nationality,
+ * university, programme, ESNcard) are not part of it – public.sign_in() only
+ * counts them (EventStats).
+ */
 export interface Participant {
   id: string;
   event_id: string;
   first_name: string;
   last_name: string;
-  /** ISO 3166-1 alpha-2 code, e.g. "DE" – show it with countryName() */
-  nationality: string;
-  /** "LMU" | "TUM" | "Other" */
-  university: string;
-  /** "Erasmus+" | "LMUexchange" | "Full-time degree" | "Other" */
-  exchange_program: string;
-  esn_card: boolean;
-  /** Signature as a small PNG data URL ("data:image/png;base64,…") */
-  signature: string;
   /** "self" (own phone) | "kiosk" (signed in on an organiser's device) */
   entry_method: "self" | "kiosk";
   /** Email of the organiser whose device recorded a kiosk sign-in */
   recorded_by: string | null;
-  /** Version (date) of the data processing notice shown; null for sign-ins before 2026-10-21 */
-  notice_version: string | null;
+  /** Version (date) of the data processing notice shown */
+  notice_version: string;
+  /** Version (date) of the participation terms accepted */
+  terms_version: string;
   created_at: string;
 }
 
 /** Legal texts the attendance form shows, as HTML rendered from legal/*.md. */
 export interface FormTexts {
-  disclaimer: string;
+  terms: string;
   dataProcessing: string;
-}
-
-export interface EventWithParticipants extends Event {
-  participants: Participant[];
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { getWorkspaceUser } from "@/lib/supabase/session";
+import { createSessionClient, getWorkspaceUser } from "@/lib/supabase/session";
 
 export default async function DashboardLayout({
   children,
@@ -8,6 +8,10 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const user = await getWorkspaceUser();
+  // Executives (Google Workspace group) also see the names of closed lists.
+  const { data: executive } = user
+    ? await (await createSessionClient()).rpc("is_executive")
+    : { data: false };
 
   return (
     <>
@@ -25,7 +29,9 @@ export default async function DashboardLayout({
               className="h-12 sm:h-16 w-auto"
             />
           </Link>
-          {user && <SignedInAs email={user.email ?? ""} meta={user.user_metadata} />}
+          {user && (
+            <SignedInAs email={user.email ?? ""} meta={user.user_metadata} executive={executive === true} />
+          )}
         </div>
       </header>
 
@@ -34,10 +40,12 @@ export default async function DashboardLayout({
   );
 }
 
-/** Who is signed in (Google picture or initials, name, email) and sign-out. */
-function SignedInAs({ email, meta }: { email: string; meta: Record<string, unknown> }) {
+/**
+ * Who is signed in (initials, name, email, role) and sign-out. No Google
+ * profile picture: loading it would show Google the organiser's IP address.
+ */
+function SignedInAs({ email, meta, executive }: { email: string; meta: Record<string, unknown>; executive: boolean }) {
   const name = String(meta.full_name ?? meta.name ?? "") || email.split("@")[0];
-  const picture = String(meta.avatar_url ?? meta.picture ?? "");
   const initials = name
     .split(/[\s.]+/)
     .filter(Boolean)
@@ -48,25 +56,21 @@ function SignedInAs({ email, meta }: { email: string; meta: Record<string, unkno
   return (
     <div className="ml-auto flex items-center gap-3">
       <div className="flex items-center gap-2.5 min-w-0" title={`Signed in as ${email}`}>
-        {picture.startsWith("https://") ? (
-          // The Google profile picture; no Referer to Google.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={picture}
-            alt=""
-            referrerPolicy="no-referrer"
-            className="h-9 w-9 rounded-full ring-2 ring-white/40 object-cover shrink-0"
-          />
-        ) : (
-          <span
-            aria-hidden="true"
-            className="h-9 w-9 rounded-full bg-white/15 ring-2 ring-white/40 flex items-center justify-center text-sm font-semibold shrink-0"
-          >
-            {initials}
-          </span>
-        )}
+        <span
+          aria-hidden="true"
+          className="h-9 w-9 rounded-full bg-white/15 ring-2 ring-white/40 flex items-center justify-center text-sm font-semibold shrink-0"
+        >
+          {initials}
+        </span>
         <div className="hidden sm:block leading-tight min-w-0">
-          <p className="text-sm font-medium truncate max-w-[14rem]">{name}</p>
+          <p className="text-sm font-medium truncate max-w-[14rem]">
+            {name}
+            {executive && (
+              <span className="ml-2 rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide align-middle">
+                Executive
+              </span>
+            )}
+          </p>
           <p className="text-xs text-white/70 truncate max-w-[14rem]">{email}</p>
         </div>
       </div>

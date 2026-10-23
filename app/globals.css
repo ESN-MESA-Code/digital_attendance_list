@@ -51,7 +51,7 @@ body {
   @apply not-italic text-gray-500;
 }
 
-/* The disclaimer and data processing boxes on the attendance form */
+/* The participation terms and data processing boxes on the attendance form */
 .legal-box {
   @apply rounded-md border border-gray-300 bg-gray-50 p-4 text-xs text-gray-700 space-y-2;
 }

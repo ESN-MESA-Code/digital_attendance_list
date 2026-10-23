@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LEGAL } from "@/lib/legal";
 
-/** Impressum and privacy links, on every page (root layout). */
+/** Impressum, participation terms and privacy links, on every page (root layout). */
 export default function LegalFooter() {
   const pathname = usePathname();
   // On the attendance forms the links open a new tab, so entered details are
@@ -20,6 +20,10 @@ export default function LegalFooter() {
       <span aria-hidden="true"> · </span>
       <Link href="/impressum" className="hover:text-gray-800 underline-offset-2 hover:underline" {...newTab}>
         Impressum / Legal notice
+      </Link>
+      <span aria-hidden="true"> · </span>
+      <Link href="/terms" className="hover:text-gray-800 underline-offset-2 hover:underline" {...newTab}>
+        Participation terms
       </Link>
       <span aria-hidden="true"> · </span>
       <Link href="/privacy" className="hover:text-gray-800 underline-offset-2 hover:underline" {...newTab}>

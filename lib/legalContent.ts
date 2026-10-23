@@ -38,7 +38,7 @@ function inNewTab(html: string): string {
 /** Everything the attendance form shows from legal/, rendered on the server. */
 export function attendanceFormTexts() {
   return {
-    disclaimer: inNewTab(legalHtml("form-disclaimer.en")),
+    terms: inNewTab(legalHtml("form-terms.en")),
     dataProcessing: inNewTab(legalHtml("form-data-processing.en")),
   };
 }

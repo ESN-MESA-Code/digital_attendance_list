@@ -2,7 +2,7 @@ import AttendancePage from "@/components/AttendancePage";
 import { attendanceFormTexts } from "@/lib/legalContent";
 
 // The public attendance form participants open from the QR code. The
-// disclaimer and data processing texts come from legal/ (rendered here, on
+// participation terms and data processing texts come from legal/ (rendered here, on
 // the server).
 export default function EventPage() {
   return <AttendancePage texts={attendanceFormTexts()} />;

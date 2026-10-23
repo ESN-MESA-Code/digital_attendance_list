@@ -1,5 +1,5 @@
 // Organisers accept the confidentiality rules once before the organiser area
-// opens; until then pages lead to the rules and exports are refused.
+// opens; until then every organiser page leads to the rules.
 import { NEW_ORGANISER, admin, resetNewOrganiser } from "../helpers/local";
 import { expect, test } from "./fixtures";
 
@@ -18,8 +18,6 @@ test("a new organiser accepts the rules, then gets where they wanted to go", asy
   await expect(page.getByRole("heading", { name: "Confidentiality for organisers" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Vertraulichkeit für Organisator*innen" })).toBeVisible();
 
-  expect((await page.request.get(`/api/export/event/${event.id}/csv`)).status()).toBe(403);
-
   await page.goto("/dashboard/events");
   await expect(page).toHaveURL(/\/confidentiality\?next=%2Fdashboard%2Fevents/);
   await page.getByRole("button", { name: "I accept / Ich akzeptiere" }).click();
@@ -28,7 +26,6 @@ test("a new organiser accepts the rules, then gets where they wanted to go", asy
 
   const { data } = await admin.from("organiser_acknowledgements").select("email").eq("email", NEW_ORGANISER.email);
   expect(data).toHaveLength(1);
-  expect((await page.request.get(`/api/export/event/${event.id}/csv`)).status()).toBe(200);
 
   // Accepted once – the page sends them straight on.
   await page.goto("/confidentiality?next=/dashboard/events");

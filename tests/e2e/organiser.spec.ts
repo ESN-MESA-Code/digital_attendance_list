@@ -1,9 +1,17 @@
-// Organiser flows: creating events, the live participant list, kiosk mode
-// and the exports.
-import { PDFDocument } from "pdf-lib";
-import { ORGANISER, admin, anonClient, createEvent, deleteEvent, participantRow, signOffEvent } from "../helpers/local";
-import { sampleSignature } from "../helpers/png";
-import { acceptSignAndSubmit, drawSignature, expect, fillForm, test } from "./fixtures";
+// Organiser flows: creating events, the live participant list, kiosk mode,
+// the sign-off with a headcount, and what organisers, executives and finance
+// see once a list is closed.
+import {
+  EXECUTIVE,
+  ORGANISER,
+  admin,
+  anonClient,
+  closeList,
+  createEvent,
+  deleteEvent,
+  signIn,
+} from "../helpers/local";
+import { acceptAndSubmit, expect, fillForm, test } from "./fixtures";
 
 test.beforeEach(async ({ signInAsOrganiser }) => {
   await signInAsOrganiser();
@@ -12,33 +20,37 @@ test.beforeEach(async ({ signInAsOrganiser }) => {
 test("creates an event and lands on its QR code page", async ({ page }) => {
   const title = `E2E event ${Date.now()}`;
   await page.goto("/dashboard/events");
+  await expect(page.getByText("Funded events (trips, team building) keep the paper attendance list.")).toBeVisible();
   await page.getByRole("button", { name: "+ New Event" }).click();
   await page.getByPlaceholder("Event title").fill(title);
-  await page.locator('input[name="event_date"]').fill("2026-11-05T19:00");
-  // Only title and date: the responsible MESA member is the creator, the LEI
-  // person signs by hand, and there is no description
-  await expect(page.getByPlaceholder("Name of responsible MESA member")).toHaveCount(0);
-  await expect(page.getByPlaceholder("Name of LEI responsible person")).toHaveCount(0);
-  await expect(page.getByPlaceholder("Event description")).toHaveCount(0);
+  await page.locator('input[name="event_date"]').fill("2030-11-05T19:00");
+  await page.getByLabel("Risk notice (optional)").fill("Bring warm clothes.");
   await page.getByRole("button", { name: "Create Event" }).click();
   await expect(page.getByRole("heading", { name: "Attendance QR Code" })).toBeVisible();
 
-  const { data } = await admin.from("events").select("id, public_token, created_by").eq("title", title).single();
+  const { data } = await admin
+    .from("events")
+    .select("id, public_token, created_by, risk_notice")
+    .eq("title", title)
+    .single();
   try {
     await expect(page).toHaveURL(`/dashboard/events/${data!.id}`);
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
     await expect(page.getByText(`/event/${data!.public_token}`)).toBeVisible();
     expect(data!.public_token).toMatch(/^[0-9a-f]{32}$/);
-    expect(data!.created_by).toBe(ORGANISER.email);
+    expect(data).toMatchObject({ created_by: ORGANISER.email, risk_notice: "Bring warm clothes." });
     await expect(page.getByText("Responsible: Test Organiser")).toBeVisible();
+    // In the future: the QR code is there, sign-ins open 2 hours before
+    await expect(page.getByText("Not open yet")).toBeVisible();
+    await expect(page.getByText(/^Sign-ins open at /)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in on this device" })).toHaveCount(0);
   } finally {
-    await admin.from("events").delete().eq("id", data!.id);
+    await deleteEvent(data!.id);
   }
 });
 
-test("the event page lists sign-ins live, with signatures", async ({ page, event }) => {
-  const signature = await sampleSignature();
-  await anonClient().from("participants").insert(participantRow(event.id, signature, { first_name: "Before" }));
+test("the event page lists sign-ins live, names only", async ({ page, event }) => {
+  await signIn(anonClient(), event.id, { first_name: "Before" });
 
   await page.goto(`/dashboard/events/${event.id}`);
   await expect(page.getByRole("heading", { name: event.title })).toBeVisible();
@@ -46,13 +58,17 @@ test("the event page lists sign-ins live, with signatures", async ({ page, event
   await expect(page.getByText(`/event/${event.public_token}`)).toBeVisible();
 
   // Someone signs in while the page is open
-  await anonClient().from("participants").insert(participantRow(event.id, signature, { first_name: "Live" }));
+  await signIn(anonClient(), event.id, { first_name: "Live" });
   await expect(page.getByRole("cell", { name: "Live", exact: true })).toBeVisible({ timeout: 15_000 });
 
-  // (The phone cards hold a hidden copy of each signature.)
-  const img = page.getByAltText("Live Mustermann signature").filter({ visible: true });
-  await expect(img).toHaveAttribute("src", signature);
-  expect(await img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
+  // No per-person details or signatures
+  await expect(page.getByRole("columnheader", { name: "Nationality" })).toHaveCount(0);
+  await expect(page.getByRole("columnheader", { name: "Signature" })).toHaveCount(0);
+  await expect(page.getByRole("img", { name: /signature/ })).toHaveCount(0);
+  // The counts follow, the breakdown waits for the closed list
+  const summary = page.locator("div.rounded-xl", { has: page.getByRole("heading", { name: "Summary" }) });
+  await expect(summary.getByText("Sign-ins").locator("..")).toContainText("2");
+  await expect(summary.getByText(/breakdown .* appears once the list is closed/)).toBeVisible();
 });
 
 test("kiosk mode records sign-ins under the organiser and starts over", async ({ page, event }) => {
@@ -67,7 +83,7 @@ test("kiosk mode records sign-ins under the organiser and starts over", async ({
   }
 
   await fillForm(page, { firstName: "Kiosk", lastName: "Person" });
-  await acceptSignAndSubmit(page);
+  await acceptAndSubmit(page);
   await expect(page.getByText("Please hand the device back")).toBeVisible();
   // Shared device: no offer to remember details
   await expect(page.getByText("Save your details for next time?")).toHaveCount(0);
@@ -78,56 +94,97 @@ test("kiosk mode records sign-ins under the organiser and starts over", async ({
   const { data } = await admin.from("participants").select("*").eq("event_id", event.id);
   expect(data).toHaveLength(1);
   expect(data![0]).toMatchObject({ first_name: "Kiosk", entry_method: "kiosk", recorded_by: ORGANISER.email });
-  expect(data![0].signature).toMatch(/^data:image\/png;base64,/);
 });
 
-test("exports CSV without signatures and PDF with them", async ({ page, event }) => {
-  const signature = await sampleSignature();
-  await anonClient().from("participants").insert([
-    participantRow(event.id, signature, { first_name: "=HYPERLINK(\"http://evil\")", last_name: "Doe, Jane" }),
-    participantRow(event.id, signature, { first_name: "Zoë", nationality: "DE" }),
-  ]);
-
-  await page.goto(`/dashboard/events/${event.id}`);
-  await expect(page.getByRole("link", { name: "Download as CSV" })).toHaveAttribute("href", `/api/export/event/${event.id}/csv`);
-  // The PDF waits for the sign-off
-  await expect(page.getByRole("link", { name: "Download as PDF" })).toHaveAttribute("aria-disabled", "true");
-  // Country names are always exported in English.
-  await expect(page.getByRole("combobox")).toHaveCount(0);
-
-  const csv = await page.request.get(`/api/export/event/${event.id}/csv`);
-  expect(csv.status()).toBe(200);
-  expect(csv.headers()["content-type"]).toContain("text/csv");
-  const text = await csv.text();
-  const [header, ...lines] = text.split("\r\n");
-  expect(header).toBe(
-    "Surname,First Name,Nationality,University,Exchange Programme,ESNcard,Registered At,Entry Method,Recorded By"
-  );
-  expect(lines).toHaveLength(2);
-  expect(text).not.toContain("data:image");
-  expect(text).toContain('"Doe, Jane"');
-  expect(text).toContain("Germany");
-  // Security: the formula is neutralised for spreadsheet apps
-  expect(text).toContain(`"'=HYPERLINK(""http://evil"")"`);
-
-  expect(text).not.toContain("Deutschland");
-
-  // The PDF is the signed list: refused until the event is signed off
-  expect((await page.request.get(`/api/export/event/${event.id}/pdf`)).status()).toBe(409);
-  await signOffEvent(event.id, signature);
-  const pdf = await page.request.get(`/api/export/event/${event.id}/pdf`);
-  expect(pdf.status()).toBe(200);
-  expect(pdf.headers()["content-type"]).toBe("application/pdf");
-  const bytes = await pdf.body();
-  expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
-});
-
-test("an unknown event 404s in exports and the kiosk", async ({ page }) => {
-  const id = crypto.randomUUID();
-  expect((await page.request.get(`/api/export/event/${id}/csv`)).status()).toBe(404);
-  expect((await page.request.get(`/api/export/event/${id}/pdf`)).status()).toBe(404);
-  const res = await page.goto(`/kiosk/${id}`);
+test("an unknown event 404s in the kiosk", async ({ page }) => {
+  const res = await page.goto(`/kiosk/${crypto.randomUUID()}`);
   expect(res!.status()).toBe(404);
+});
+
+test("the creator signs off with a headcount, which closes sign-ins and the names", async ({ page }) => {
+  const ev = await createEvent(`Finish ${Date.now()}`, ORGANISER.email);
+  try {
+    await signIn(anonClient(), ev.id, { first_name: "Anna", nationality: "DE" });
+    await signIn(anonClient(), ev.id, { first_name: "Ben" });
+    await page.goto(`/dashboard/events/${ev.id}`);
+    await expect(page.getByText("Open for sign-ins")).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Anna", exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "Finish & sign off" }).click();
+    // No number, no sign-off
+    await page.getByRole("button", { name: "Sign off & close sign-ins" }).click();
+    await expect(page.getByText("Please enter how many people you counted.")).toBeVisible();
+    await page.getByLabel("How many people did you count at the event?").fill("3");
+    await page.getByRole("button", { name: "Sign off & close sign-ins" }).click();
+
+    await expect(page.getByText("✓ Signed off")).toBeVisible();
+    await expect(page.getByText(new RegExp(`^on .* by ${ORGANISER.email}$`))).toBeVisible();
+    await expect(page.getByText("Sign-ins are closed – the attendance list was signed off.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in on this device" })).toHaveCount(0);
+
+    // Counts and breakdown for everyone, names no longer for this organiser
+    await expect(page.getByText("1 counted person has not signed in.")).toBeVisible();
+    await expect(page.getByText("Germany")).toBeVisible();
+    await expect(page.getByText("The list is closed: only executives see the names now.")).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Anna", exact: true })).toHaveCount(0);
+
+    const { data } = await admin.from("events").select("signed_off_by, headcount").eq("id", ev.id).single();
+    expect(data).toEqual({ signed_off_by: ORGANISER.email, headcount: 3 });
+
+    // Both ways to sign in are closed now
+    await page.goto(`/event/${ev.public_token}`);
+    await expect(page.getByRole("heading", { name: "Sign-ins are closed" })).toBeVisible();
+    await page.goto(`/kiosk/${ev.id}`);
+    await expect(page.getByRole("heading", { name: "Sign-ins are closed" })).toBeVisible();
+
+    // The list shows the status and the counts
+    await page.goto("/dashboard/events");
+    await expect(page.getByLabel(`Signed off: ${ev.title}`)).toBeVisible();
+    await expect(page.getByText("2 signed in · 3 counted")).toBeVisible();
+  } finally {
+    await deleteEvent(ev.id);
+  }
+});
+
+test("only the creator can sign an event off", async ({ page }) => {
+  const ev = await createEvent(`Not mine ${Date.now()}`, "someone-else@esnmesa.org");
+  try {
+    await page.goto(`/dashboard/events/${ev.id}`);
+    await expect(page.getByText("Only someone-else@esnmesa.org can sign this event off.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Finish & sign off" })).toHaveCount(0);
+  } finally {
+    await deleteEvent(ev.id);
+  }
+});
+
+test("a list closed 24 hours after the event awaits the sign-off", async ({ page, event }) => {
+  await signIn(anonClient(), event.id, { first_name: "Late" });
+  await closeList(event.id);
+  await page.goto(`/dashboard/events/${event.id}`);
+  await expect(page.getByText("Closed – awaiting sign-off")).toBeVisible();
+  await expect(page.getByText("Sign-ins are closed – the event ended more than 24 hours ago.")).toBeVisible();
+  await expect(page.getByText("The list is closed: only executives see the names now.")).toBeVisible();
+  await page.goto("/dashboard/events");
+  await expect(page.getByLabel(`Awaiting sign-off: ${event.title}`)).toBeVisible();
+});
+
+test("executives still see the names of a closed list", async ({ page, context, event, signInAsOrganiser }) => {
+  await signIn(anonClient(), event.id, { first_name: "Kept" });
+  await closeList(event.id);
+  await context.clearCookies();
+  await signInAsOrganiser(EXECUTIVE);
+  await page.goto(`/dashboard/events/${event.id}`);
+  await expect(page.getByRole("cell", { name: "Kept", exact: true })).toBeVisible();
+  await expect(page.getByText("Visible to you as an executive")).toBeVisible();
+  await expect(page.getByRole("banner").getByText("Executive", { exact: true })).toBeVisible();
+});
+
+test("finance gets a link to the event page", async ({ page, context, event }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(`/dashboard/events/${event.id}`);
+  await page.getByRole("button", { name: "Copy link for finance" }).click();
+  await expect(page.getByRole("button", { name: "✓ Link copied" })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
 });
 
 test("lists your own events first, then everyone else's", async ({ page, event }) => {
@@ -145,66 +202,12 @@ test("lists your own events first, then everyone else's", async ({ page, event }
     await expect(all.getByText(mine.title)).toHaveCount(0);
     await expect(yours.getByText(theirs.title)).toHaveCount(0);
     await expect(yours.getByText(event.title)).toHaveCount(0);
+    // No exports or filing any more
+    await expect(page.getByRole("button", { name: "Export PDF" })).toHaveCount(0);
+    await expect(page.getByText("Only lists not yet filed in the office")).toHaveCount(0);
   } finally {
     await deleteEvent(mine.id);
     await deleteEvent(theirs.id);
-  }
-});
-
-test("exports several events as one PDF and marks them as filed", async ({ page, event }) => {
-  const second = await createEvent(`Second ${Date.now()}`, ORGANISER.email);
-  try {
-    const signature = await sampleSignature();
-    await anonClient().from("participants").insert([
-      participantRow(event.id, signature),
-      participantRow(second.id, signature, { first_name: "Zoë" }),
-    ]);
-    const unsigned = await createEvent(`Unsigned ${Date.now()}`, ORGANISER.email);
-    await signOffEvent(event.id, signature);
-    await signOffEvent(second.id, signature);
-
-    await page.goto("/dashboard/events");
-    // No checkboxes until you start an export
-    await expect(page.getByRole("checkbox", { name: `Select ${event.title}` })).toHaveCount(0);
-    await page.getByRole("button", { name: "Export PDF" }).click();
-    await expect(page.getByText("Select the signed-off events to export")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Download PDF/ })).toHaveCount(0);
-
-    // Only signed-off events can be picked
-    await expect(page.getByRole("checkbox", { name: `Select ${unsigned.title}` })).toBeDisabled();
-    await deleteEvent(unsigned.id);
-    await page.getByRole("checkbox", { name: `Select ${event.title}` }).check();
-    await page.getByRole("checkbox", { name: `Select ${second.title}` }).check();
-    await expect(page.getByText("2 selected")).toBeVisible();
-
-    const [download] = await Promise.all([
-      page.waitForEvent("download"),
-      page.getByRole("link", { name: "Download PDF (2)" }).click(),
-    ]);
-    expect(download.suggestedFilename()).toBe("attendance_2_events.pdf");
-    const url = new URL(download.url());
-    expect(url.pathname).toBe("/api/export/events/pdf");
-
-    const res = await page.request.get(url.pathname + url.search);
-    expect(res.status()).toBe(200);
-    expect(res.headers()["content-type"]).toBe("application/pdf");
-    const doc = await PDFDocument.load(await res.body());
-    // One page per event (few participants each).
-    expect(doc.getPageCount()).toBe(2);
-
-    // Offered to mark the printed lists as filed
-    await page.getByRole("button", { name: "✓ Mark as filed" }).click();
-    await expect(page.getByRole("button", { name: `Filed: ${event.title}`, exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: `Filed: ${second.title}`, exact: true })).toBeVisible();
-    const { data } = await admin.from("events").select("filed_at, filed_by").in("id", [event.id, second.id]);
-    expect(data).toHaveLength(2);
-    for (const row of data!) {
-      expect(row.filed_at).not.toBeNull();
-      expect(row.filed_by).toBe(ORGANISER.email);
-    }
-    await expect(page.getByRole("checkbox", { name: `Select ${event.title}` })).toHaveCount(0);
-  } finally {
-    await deleteEvent(second.id);
   }
 });
 
@@ -225,48 +228,6 @@ test("events are sorted by date, newest first", async ({ page }) => {
   }
 });
 
-test("tracks which printed lists are filed in the office", async ({ page, event }) => {
-  await page.goto("/dashboard/events");
-  const chip = page.getByRole("button", { name: `Not filed: ${event.title}`, exact: true });
-  // Only after the sign-off
-  await expect(chip).toBeDisabled();
-  await signOffEvent(event.id, await sampleSignature());
-  await page.reload();
-  await chip.click();
-  await expect(page.getByRole("button", { name: `Filed: ${event.title}`, exact: true })).toBeVisible();
-
-  // "Only not yet filed" hides it
-  await page.getByLabel("Only lists not yet filed in the office").check();
-  await expect(page.getByText(event.title)).toHaveCount(0);
-  await page.getByLabel("Only lists not yet filed in the office").uncheck();
-
-  // The event page shows who filed it, and can undo
-  await page.goto(`/dashboard/events/${event.id}`);
-  await expect(page.getByText(/^on .* by organiser@esnmesa\.org$/)).toHaveCount(2); // signed off and filed
-  await expect(page.getByText("✓ Filed in office")).toBeVisible();
-  await page.getByRole("button", { name: "Undo" }).click();
-  await expect(page.getByText("Not filed yet")).toBeVisible();
-  await page.getByRole("button", { name: "✓ Mark as filed" }).click();
-  await expect(page.getByText(/^on \d\d \w+ \d{4} by /)).toHaveCount(2); // signed off and filed again
-
-  const { data } = await admin.from("events").select("filed_by").eq("id", event.id).single();
-  expect(data!.filed_by).toBe(ORGANISER.email);
-});
-
-test("the combined export checks its ids", async ({ page, event }) => {
-  const get = (ids: string) => page.request.get(`/api/export/events/pdf?ids=${ids}`);
-  expect((await get("")).status()).toBe(400);
-  expect((await get("not-a-uuid")).status()).toBe(400);
-  expect((await get(`${event.id},1;drop`)).status()).toBe(400);
-  const tooMany = Array.from({ length: 51 }, () => crypto.randomUUID()).join(",");
-  expect((await get(tooMany)).status()).toBe(400);
-  expect((await get(`${event.id},${crypto.randomUUID()}`)).status()).toBe(404);
-  // Not signed off yet
-  expect((await get(event.id)).status()).toBe(409);
-  await signOffEvent(event.id, await sampleSignature());
-  expect((await get(event.id)).status()).toBe(200);
-});
-
 test.describe("in Munich", () => {
   test.use({ timezoneId: "Europe/Berlin" });
 
@@ -283,15 +244,15 @@ test.describe("in Munich", () => {
     });
     const prefilled = await page.locator('input[name="event_date"]').inputValue();
     expect(Math.abs(new Date(prefilled).getTime() - new Date(now).getTime())).toBeLessThanOrEqual(60_000);
-    await page.locator('input[name="event_date"]').fill("2026-11-05T19:00");
+    await page.locator('input[name="event_date"]').fill("2030-11-05T19:00");
     await page.getByRole("button", { name: "Create Event" }).click();
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
-    await expect(page.getByText("05 November 2026 at 19:00")).toBeVisible();
+    await expect(page.getByText("05 November 2030 at 19:00")).toBeVisible();
 
     const { data } = await admin.from("events").select("id, event_date").eq("title", title).single();
     await admin.from("events").delete().eq("id", data!.id);
     // 19:00 in Munich (CET) is 18:00 UTC
-    expect(new Date(data!.event_date).toISOString()).toBe("2026-11-05T18:00:00.000Z");
+    expect(new Date(data!.event_date).toISOString()).toBe("2030-11-05T18:00:00.000Z");
   });
 
   test("edits an event in place: same id and QR code, fixed details", async ({ page, event }) => {
@@ -299,8 +260,6 @@ test.describe("in Munich", () => {
     await page.getByRole("button", { name: "Edit" }).click();
     // Pre-filled with the current values
     await expect(page.getByPlaceholder("Event title")).toHaveValue(event.title);
-    // The responsible member is not editable
-    await expect(page.getByPlaceholder("Name of responsible MESA member")).toHaveCount(0);
 
     // Cancel changes nothing
     await page.getByPlaceholder("Event title").fill("Discarded");
@@ -309,11 +268,13 @@ test.describe("in Munich", () => {
 
     await page.getByRole("button", { name: "Edit" }).click();
     await page.getByPlaceholder("Event title").fill("Stammtisch (typo fixed)");
-    await page.locator('input[name="event_date"]').fill("2026-12-01T20:30");
+    await page.locator('input[name="event_date"]').fill("2030-12-01T20:30");
+    await page.getByLabel("Risk notice (optional)").fill("Stairs only.");
     await page.getByRole("button", { name: "Save changes" }).click();
 
     await expect(page.getByRole("heading", { name: "Stammtisch (typo fixed)" })).toBeVisible();
-    await expect(page.getByText("01 December 2026 at 20:30")).toBeVisible();
+    await expect(page.getByText("01 December 2030 at 20:30")).toBeVisible();
+    await expect(page.getByText("Stairs only.")).toBeVisible();
     await expect(page.getByText("Responsible: Rita Responsible", { exact: true })).toBeVisible();
     await expect(page).toHaveURL(`/dashboard/events/${event.id}`);
     await expect(page.getByText(`/event/${event.public_token}`)).toBeVisible();
@@ -323,12 +284,21 @@ test.describe("in Munich", () => {
       public_token: event.public_token,
       title: "Stammtisch (typo fixed)",
       responsible_member: "Rita Responsible",
+      risk_notice: "Stairs only.",
     });
-    expect(new Date(data!.event_date).toISOString()).toBe("2026-12-01T19:30:00.000Z");
+    expect(new Date(data!.event_date).toISOString()).toBe("2030-12-01T19:30:00.000Z");
+  });
 
-    // The participant form shows the fixed title
-    await page.goto(`/event/${event.public_token}`);
-    await expect(page.getByRole("heading", { name: "Stammtisch (typo fixed)" })).toBeVisible();
+  test("once people signed in, only the title can change", async ({ page, event }) => {
+    await signIn(anonClient(), event.id);
+    await page.goto(`/dashboard/events/${event.id}`);
+    await page.getByRole("button", { name: "Edit" }).click();
+    await expect(page.locator('input[name="event_date"]')).not.toBeEditable();
+    await expect(page.getByLabel("Risk notice (optional)")).not.toBeEditable();
+    await expect(page.getByText("People have signed in already")).toBeVisible();
+    await page.getByPlaceholder("Event title").fill("Renamed after sign-ins");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByRole("heading", { name: "Renamed after sign-ins" })).toBeVisible();
   });
 });
 
@@ -337,59 +307,4 @@ test("the logo leads back to the events page; no separate Events link", async ({
   await expect(page.getByRole("banner").getByRole("link", { name: "Events", exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "ESN MESA München – back to events" }).click();
   await expect(page).toHaveURL("/dashboard/events");
-});
-
-test("the creator finishes the event with a signature, which closes sign-ins", async ({ page }) => {
-  const ev = await createEvent(`Finish ${Date.now()}`, ORGANISER.email);
-  try {
-    await page.goto(`/dashboard/events/${ev.id}`);
-    await expect(page.getByText("Open for sign-ins")).toBeVisible();
-    await expect(page.getByRole("button", { name: "✓ Mark as filed" })).toBeDisabled();
-    // No PDF before the sign-off
-    await expect(page.getByRole("link", { name: "Download as PDF" })).toHaveAttribute("aria-disabled", "true");
-
-    await page.getByRole("button", { name: "Finish & sign" }).click();
-    // An empty pad is not a signature
-    await page.getByRole("button", { name: "Sign off & close sign-ins" }).click();
-    await expect(page.getByText("Please sign first.")).toBeVisible();
-    await drawSignature(page);
-    await page.getByRole("button", { name: "Sign off & close sign-ins" }).click();
-
-    await expect(page.getByText("✓ Signed off")).toBeVisible();
-    await expect(page.getByText(new RegExp(`^on .* by ${ORGANISER.email}$`))).toBeVisible();
-    await expect(page.getByText("Sign-ins are closed – the attendance list was signed off.")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Sign in on this device" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Download as PDF" })).toHaveAttribute(
-      "href",
-      `/api/export/event/${ev.id}/pdf`
-    );
-    expect((await page.request.get(`/api/export/event/${ev.id}/pdf`)).status()).toBe(200);
-
-    const { data } = await admin.from("events").select("signed_off_by, organiser_signature").eq("id", ev.id).single();
-    expect(data!.signed_off_by).toBe(ORGANISER.email);
-    expect(data!.organiser_signature).toMatch(/^data:image\/png;base64,/);
-
-    // Both ways to sign in are closed now
-    await page.goto(`/event/${ev.public_token}`);
-    await expect(page.getByRole("heading", { name: "Sign-ins are closed" })).toBeVisible();
-    await page.goto(`/kiosk/${ev.id}`);
-    await expect(page.getByRole("heading", { name: "Sign-ins are closed" })).toBeVisible();
-
-    // The list shows the status
-    await page.goto("/dashboard/events");
-    await expect(page.getByLabel(`Signed off: ${ev.title}`)).toBeVisible();
-  } finally {
-    await deleteEvent(ev.id);
-  }
-});
-
-test("only the creator can sign an event off", async ({ page }) => {
-  const ev = await createEvent(`Not mine ${Date.now()}`, "someone-else@esnmesa.org");
-  try {
-    await page.goto(`/dashboard/events/${ev.id}`);
-    await expect(page.getByText("Only someone-else@esnmesa.org can sign this event off.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Finish & sign" })).toHaveCount(0);
-  } finally {
-    await deleteEvent(ev.id);
-  }
 });

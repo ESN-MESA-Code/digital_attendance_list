@@ -4,6 +4,7 @@ import { expect, test } from "./fixtures";
 
 for (const [path, heading] of [
   ["/impressum", "Impressum / Legal notice"],
+  ["/terms", "Participation terms"],
   ["/privacy", "Privacy notice"],
   ["/datenschutz", "Datenschutzerklärung"],
 ]) {
@@ -23,6 +24,9 @@ test("the login page links both in its footer", async ({ page }) => {
   await page.goBack();
   await footer.getByRole("link", { name: "Privacy / Datenschutz" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Privacy notice" })).toBeVisible();
+  await page.goBack();
+  await footer.getByRole("link", { name: "Participation terms" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Participation terms" })).toBeVisible();
 });
 
 test("the attendance form explains the data processing and links the notice", async ({ page, event }) => {

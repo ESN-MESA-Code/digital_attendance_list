@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase/client";
-import SignaturePad, { type SignaturePadHandle } from "@/components/SignaturePad";
 import { isCountryCode, matchCountry } from "@/lib/countries";
 import CountryCombobox from "@/components/CountryCombobox";
 import {
@@ -15,35 +14,33 @@ import {
   saveDetails,
   type SavedDetails,
 } from "@/lib/savedDetails";
-import { NOTICE_VERSION } from "@/lib/legal";
+import { NOTICE_VERSION, TERMS_VERSION } from "@/lib/legal";
+import { formatDateTime } from "@/lib/events/window";
 import type { FormTexts, PublicEvent } from "@/types";
 
 const UNIVERSITIES = ["LMU", "TUM", "Other"] as const;
 const EXCHANGE_PROGRAMS = ["Erasmus+", "LMUexchange", "Full-time degree", "Other"] as const;
 
+// The statistics questions are optional: "" (or nothing picked) means not given.
 const schema = z.object({
-  first_name: z.string().trim().min(1, "First name is required"),
-  last_name: z.string().trim().min(1, "Last name is required"),
+  first_name: z.string().trim().min(1, "First name is required").max(200, "Please shorten your first name"),
+  last_name: z.string().trim().min(1, "Last name is required").max(200, "Please shorten your last name"),
   nationality: z
     .string()
-    .min(1, "Nationality is required")
     // ISO code from the country picker (raw text while nothing matches).
-    .refine(isCountryCode, "Please pick a country from the list"),
-  university: z.enum(UNIVERSITIES, { error: "Please select your university" }),
-  exchange_program: z.enum(EXCHANGE_PROGRAMS, {
-    error: "Please select your exchange programme",
-  }),
-  esn_card: z.enum(["yes", "no"], { error: "Please indicate if you have an ESNcard" }),
-  disclaimer_accepted: z.boolean().refine((v) => v === true, {
-    message: "You must accept the disclaimer to continue.",
+    .refine((v) => v === "" || isCountryCode(v), "Please pick a country from the list, or leave it empty"),
+  university: z.enum(["", ...UNIVERSITIES]).nullish(),
+  exchange_program: z.enum(["", ...EXCHANGE_PROGRAMS]).nullish(),
+  esn_card: z.enum(["", "yes", "no"]).nullish(),
+  terms_accepted: z.boolean().refine((v) => v === true, {
+    message: "Please accept the participation terms to sign in.",
   }),
 });
 
 type FormData = z.infer<typeof schema>;
 
-// details and disclaimer → signature on its own page → (submitted) →
-// ask to remember details → done
-type Step = "form" | "sign" | "save" | "done";
+// details → (submitted) → ask to remember details → done
+type Step = "form" | "save" | "done";
 
 const inputClass =
   "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-esn-accent";
@@ -51,25 +48,42 @@ const inputClass =
 // Seconds the kiosk "thank you" screen stays up before the next person's form.
 const KIOSK_RESET_SECONDS = 5;
 
-/** Shown instead of the form once the organiser signed the event off. */
-export function SignInsClosed({ title }: { title: string }) {
+/** A full-screen card for the states without a form. */
+function Notice({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center max-w-sm w-full">
-        <div className="text-4xl mb-3">🔒</div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Sign-ins are closed</h2>
-        <p className="text-gray-600 text-sm">
-          The attendance list for <span className="font-medium">{title}</span> has been signed
-          off by the organiser. Please talk to them if you attended but could not sign in.
-        </p>
+        <div className="text-4xl mb-3">{icon}</div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">{title}</h2>
+        <p className="text-gray-600 text-sm">{children}</p>
       </div>
     </main>
   );
 }
 
+/** Shown instead of the form once the list is closed (signed off, or 24 hours after the event). */
+export function SignInsClosed({ title }: { title: string }) {
+  return (
+    <Notice icon="🔒" title="Sign-ins are closed">
+      The attendance list for <span className="font-medium">{title}</span> is closed. Please talk
+      to the organisers if you attended but could not sign in.
+    </Notice>
+  );
+}
+
+/** Shown before the window opens (2 hours before the event). */
+function SignInsNotOpenYet({ event }: { event: PublicEvent }) {
+  return (
+    <Notice icon="⏳" title="Sign-ins are not open yet">
+      You can sign in to <span className="font-medium">{event.title}</span> from{" "}
+      <span className="font-medium">{formatDateTime(event.opens_at)}</span>.
+    </Notice>
+  );
+}
+
 interface Props {
   event: PublicEvent;
-  /** Disclaimer and data processing notice from legal/ */
+  /** Participation terms and data processing notice from legal/ */
   texts: FormTexts;
   /**
    * Set when the form runs on an organiser's device for participants without
@@ -77,7 +91,7 @@ interface Props {
    * (the device is shared) and the form starts over after each sign-in.
    */
   kiosk?: {
-    /** Email of the signed-in organiser */
+    /** Email of the signed-in organiser (shown; the database records it from the session) */
     recordedBy: string;
     /** Called when the next person may sign in */
     onNext: () => void;
@@ -91,11 +105,9 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
   // Whether the form was pre-filled from details saved on this device.
   const [usedSaved, setUsedSaved] = useState(false);
   const [submittedDetails, setSubmittedDetails] = useState<SavedDetails | null>(null);
-  // The checked answers from the first page, while the participant signs.
-  const [answers, setAnswers] = useState<FormData | null>(null);
-  // The event was signed off while the form was open.
+  // The list was closed while the form was open.
   const [closed, setClosed] = useState(event.closed);
-  const sigPadRef = useRef<SignaturePadHandle>(null);
+  const [notOpenYet, setNotOpenYet] = useState(() => Date.now() < new Date(event.opens_at).getTime());
   const isKiosk = kiosk !== undefined;
   const onNext = kiosk?.onNext;
 
@@ -107,6 +119,16 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { nationality: "" } });
 
+  // Waiting for the window: open the form by itself when it starts.
+  useEffect(() => {
+    if (!notOpenYet) return;
+    const wait = new Date(event.opens_at).getTime() - Date.now();
+    // setTimeout overflows after ~24.8 days; nobody waits on the page that long.
+    if (wait > 2 ** 31 - 1) return;
+    const timer = setTimeout(() => setNotOpenYet(false), Math.max(0, wait));
+    return () => clearTimeout(timer);
+  }, [notOpenYet, event.opens_at]);
+
   useEffect(() => {
     if (isKiosk) return;
     const saved = loadSavedDetails();
@@ -115,10 +137,10 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
       reset({
         ...saved,
         // Details saved before codes were used hold a country name.
-        nationality: isCountryCode(saved.nationality)
-          ? saved.nationality
+        nationality: !saved.nationality || isCountryCode(saved.nationality)
+          ? saved.nationality ?? ""
           : (matchCountry(saved.nationality) ?? ""),
-        disclaimer_accepted: false,
+        terms_accepted: false,
       } as FormData);
       setUsedSaved(true);
     }
@@ -139,69 +161,54 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
   function handleForget() {
     forgetSavedDetails();
     setUsedSaved(false);
-    // "" leaves no radio selected; react-hook-form keeps a choice when a field is omitted.
     reset({
       first_name: "",
       last_name: "",
       nationality: "",
-      university: "",
-      exchange_program: "",
-      esn_card: "",
-      disclaimer_accepted: false,
-    } as unknown as FormData);
+      university: null,
+      exchange_program: null,
+      esn_card: null,
+      terms_accepted: false,
+    } as FormData);
   }
 
-  function goToSignature(data: FormData) {
-    setAnswers(data);
-    setError(null);
-    setStep("sign");
-    window.scrollTo(0, 0);
-  }
-
-  async function submitAttendance() {
-    const data = answers;
-    if (!data) return;
-    if (sigPadRef.current?.isEmpty()) {
-      setError("Please provide your signature.");
-      return;
-    }
-
+  async function submitAttendance(data: FormData) {
     setSubmitting(true);
     setError(null);
 
+    const details: SavedDetails = {
+      first_name: data.first_name,
+      last_name: data.last_name,
+      nationality: data.nationality,
+      university: data.university ?? "",
+      exchange_program: data.exchange_program ?? "",
+      esn_card: data.esn_card ?? "",
+    };
+
     try {
-      const signature = await sigPadRef.current!.toPng();
-      if (!signature) throw new Error("Please provide your signature.");
-
-      const details: SavedDetails = {
-        first_name: data.first_name,
-        last_name: data.last_name,
-        nationality: data.nationality,
-        university: data.university,
-        exchange_program: data.exchange_program,
-        esn_card: data.esn_card,
-      };
-
-      // No .select(): participants cannot (and must not) read rows back.
-      const { error: insertError } = await supabase.from("participants").insert({
-        event_id: event.id,
+      // public.sign_in() stores the name and counts the optional answers for
+      // the event's statistics – they are never stored with the name.
+      const { error: insertError } = await supabase.rpc("sign_in", {
+        event: event.id,
         first_name: details.first_name,
         last_name: details.last_name,
-        nationality: details.nationality,
-        university: details.university,
-        exchange_program: details.exchange_program,
-        esn_card: details.esn_card === "yes",
-        signature,
-        // The data processing notice this person was shown (Art. 5(2) GDPR).
+        // What this person was shown and accepted (Art. 5(2) GDPR, § 305(2) BGB).
         notice_version: NOTICE_VERSION,
-        // Self sign-ins rely on the column defaults ('self', null).
-        ...(kiosk && { entry_method: "kiosk", recorded_by: kiosk.recordedBy }),
+        terms_version: TERMS_VERSION,
+        // Optional answers: null when left out.
+        nationality: details.nationality || null,
+        university: details.university || null,
+        exchange_program: details.exchange_program || null,
+        esn_card: details.esn_card ? details.esn_card === "yes" : null,
+        // Recorded under the signed-in organiser's email by the database.
+        kiosk: isKiosk,
       });
 
       if (insertError) {
-        // RLS refuses sign-ins for events that were signed off meanwhile.
+        // Refused outside the window or after the sign-off.
         if (insertError.code === "42501") {
-          setClosed(true);
+          if (Date.now() < new Date(event.opens_at).getTime()) setNotOpenYet(true);
+          else setClosed(true);
           return;
         }
         throw insertError;
@@ -216,17 +223,14 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
         setStep("save");
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An error occurred. Please try again.");
-      }
+      setError(err instanceof Error ? err.message : "An error occurred. Please try again.");
     } finally {
       setSubmitting(false);
     }
   }
 
   if (closed) return <SignInsClosed title={event.title} />;
+  if (notOpenYet) return <SignInsNotOpenYet event={event} />;
 
   if (step === "save" || step === "done") {
     return (
@@ -244,9 +248,8 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
                 {usedSaved ? "Keep your details saved for next time?" : "Save your details for next time?"}
               </h3>
               <p className="text-xs text-gray-500 mt-1">
-                We can store your name, nationality, university, exchange programme and
-                ESNcard status in this browser on this device, so the form is filled in
-                automatically at the next event. Your signature is not saved.
+                We can store your name and the optional answers you gave in this browser on this
+                device, so the form is filled in automatically at the next event.
                 {usedSaved
                   ? " “No, thanks” removes the details saved earlier."
                   : " Nothing is stored unless you choose to save."}
@@ -311,6 +314,9 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
     );
   }
 
+  const radio = "h-4 w-4 border-gray-300 text-esn focus:ring-esn-accent";
+  const option = "flex items-center gap-1.5 cursor-pointer text-sm text-gray-700";
+
   return (
     <main className="min-h-screen bg-gray-50 flex items-start justify-center px-4 py-10">
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 max-w-lg w-full overflow-hidden">
@@ -339,23 +345,20 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
             </p>
           </div>
 
-          {usedSaved && step === "form" && (
+          {usedSaved && (
             <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-gray-700">
-              We filled in your saved details – please check them, then continue to sign.{" "}
+              We filled in your saved details – please check them, then sign in.{" "}
               <button type="button" onClick={handleForget} className="text-esn underline">
                 Not you? Remove saved details
               </button>
             </div>
           )}
 
-          {/* Hidden, not unmounted, while signing: "Back" finds every answer as left. */}
           <form
-            onSubmit={handleSubmit(goToSignature)}
+            onSubmit={handleSubmit(submitAttendance)}
             className="space-y-4"
-            hidden={step !== "form"}
             autoComplete={isKiosk ? "off" : undefined}
           >
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Step 1 of 2 · Your details</p>
             {/* Name */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -389,126 +392,112 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
               </div>
             </div>
 
-            {/* Nationality – type to search, validated against the list */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nationality <span className="text-red-500">*</span>
-              </label>
-              <Controller
-                name="nationality"
-                control={control}
-                render={({ field }) => (
-                  <CountryCombobox
-                    name={field.name}
-                    value={field.value ?? ""}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    placeholder="Start typing your country…"
-                    className={inputClass}
-                  />
+            {/* Optional details, only ever counted */}
+            <fieldset className="rounded-lg border border-gray-200 p-4 space-y-4">
+              <legend className="px-1 text-sm font-semibold text-gray-700">Optional</legend>
+              <p className="text-xs text-gray-500 -mt-2">
+                For anonymous statistics only: we count your answers for this event and never
+                store them with your name.
+              </p>
+
+              {/* Nationality – type to search, validated against the list */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
+                <Controller
+                  name="nationality"
+                  control={control}
+                  render={({ field }) => (
+                    <CountryCombobox
+                      name={field.name}
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      placeholder="Start typing your country…"
+                      className={inputClass}
+                    />
+                  )}
+                />
+                {errors.nationality && (
+                  <p className="text-red-500 text-xs mt-1">{errors.nationality.message}</p>
                 )}
-              />
-              {errors.nationality && (
-                <p className="text-red-500 text-xs mt-1">{errors.nationality.message}</p>
-              )}
-            </div>
+              </div>
 
-            {/* University */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                University <span className="text-red-500">*</span>
-              </label>
-              <div className="flex flex-wrap gap-3">
-                {UNIVERSITIES.map((uni) => (
-                  <label key={uni} className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
-                    <input
-                      {...register("university")}
-                      type="radio"
-                      value={uni}
-                      className="h-4 w-4 border-gray-300 text-esn focus:ring-esn-accent"
-                    />
-                    {uni}
+              <div role="radiogroup" aria-label="University">
+                <p className="block text-sm font-medium text-gray-700 mb-1">University</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {UNIVERSITIES.map((uni) => (
+                    <label key={uni} className={option}>
+                      <input {...register("university")} type="radio" value={uni} className={radio} />
+                      {uni}
+                    </label>
+                  ))}
+                  <label className={option}>
+                    <input {...register("university")} type="radio" value="" className={radio} />
+                    Prefer not to say
                   </label>
-                ))}
+                </div>
               </div>
-              {errors.university && (
-                <p className="text-red-500 text-xs mt-1">{errors.university.message}</p>
-              )}
-            </div>
 
-            {/* Exchange Programme */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Exchange programme <span className="text-red-500">*</span>
-              </label>
-              <div className="flex flex-wrap gap-3">
-                {EXCHANGE_PROGRAMS.map((prog) => (
-                  <label key={prog} className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
-                    <input
-                      {...register("exchange_program")}
-                      type="radio"
-                      value={prog}
-                      className="h-4 w-4 border-gray-300 text-esn focus:ring-esn-accent"
-                    />
-                    {prog}
+              <div role="radiogroup" aria-label="Exchange programme">
+                <p className="block text-sm font-medium text-gray-700 mb-1">Exchange programme</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {EXCHANGE_PROGRAMS.map((prog) => (
+                    <label key={prog} className={option}>
+                      <input {...register("exchange_program")} type="radio" value={prog} className={radio} />
+                      {prog}
+                    </label>
+                  ))}
+                  <label className={option}>
+                    <input {...register("exchange_program")} type="radio" value="" className={radio} />
+                    Prefer not to say
                   </label>
-                ))}
+                </div>
               </div>
-              {errors.exchange_program && (
-                <p className="text-red-500 text-xs mt-1">{errors.exchange_program.message}</p>
-              )}
-            </div>
 
-            {/* ESNcard */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Do you have an ESNcard? <span className="text-red-500">*</span>
-              </label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
-                  <input
-                    {...register("esn_card")}
-                    type="radio"
-                    value="yes"
-                    className="h-4 w-4 border-gray-300 text-esn focus:ring-esn-accent"
-                  />
-                  Yes
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
-                  <input
-                    {...register("esn_card")}
-                    type="radio"
-                    value="no"
-                    className="h-4 w-4 border-gray-300 text-esn focus:ring-esn-accent"
-                  />
-                  No
-                </label>
+              <div role="radiogroup" aria-label="ESNcard">
+                <p className="block text-sm font-medium text-gray-700 mb-1">Do you have an ESNcard?</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  <label className={option}>
+                    <input {...register("esn_card")} type="radio" value="yes" className={radio} />
+                    Yes
+                  </label>
+                  <label className={option}>
+                    <input {...register("esn_card")} type="radio" value="no" className={radio} />
+                    No
+                  </label>
+                  <label className={option}>
+                    <input {...register("esn_card")} type="radio" value="" className={radio} />
+                    Prefer not to say
+                  </label>
+                </div>
               </div>
-              {errors.esn_card && (
-                <p className="text-red-500 text-xs mt-1">{errors.esn_card.message}</p>
-              )}
-            </div>
+            </fieldset>
 
-            {/* Disclaimer (legal/form-disclaimer.en.md) */}
-            <div className="legal-box" dangerouslySetInnerHTML={{ __html: texts.disclaimer }} />
+            {/* Risk notice of this event (part of the terms for it) */}
+            {event.risk_notice && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
+                <h3 className="text-sm font-semibold text-amber-900">Risk notice for this event</h3>
+                <p className="mt-1 text-sm text-amber-900 whitespace-pre-line">{event.risk_notice}</p>
+              </div>
+            )}
 
-            {/* Disclaimer acceptance checkbox */}
+            {/* Participation terms (legal/form-terms.en.md) */}
+            <div className="legal-box" dangerouslySetInnerHTML={{ __html: texts.terms }} />
+
             <div>
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
-                  {...register("disclaimer_accepted")}
+                  {...register("terms_accepted")}
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-esn focus:ring-esn-accent shrink-0"
                 />
                 <span className="text-sm text-gray-700">
-                  I have read and accept the disclaimer above.{" "}
+                  I accept the participation terms{event.risk_notice ? " and the risk notice above" : ""}.{" "}
                   <span className="text-red-500">*</span>
                 </span>
               </label>
-              {errors.disclaimer_accepted && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.disclaimer_accepted.message}
-                </p>
+              {errors.terms_accepted && (
+                <p className="text-red-500 text-xs mt-1">{errors.terms_accepted.message}</p>
               )}
             </div>
 
@@ -517,57 +506,18 @@ export default function AttendanceForm({ event, texts, kiosk }: Props) {
                 the page footer. */}
             <div className="legal-box" dangerouslySetInnerHTML={{ __html: texts.dataProcessing }} />
 
+            {error && (
+              <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>
+            )}
+
             <button
               type="submit"
-              className="w-full bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark transition-colors"
+              disabled={submitting}
+              className="w-full bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Continue to signature →
+              {submitting ? "Signing in…" : "Sign in"}
             </button>
           </form>
-
-          {step === "sign" && answers && (
-            <div className="space-y-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Step 2 of 2 · Signature</p>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Please sign, {answers.first_name} {answers.last_name}
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Your signature confirms your attendance and that you accept the disclaimer.
-                </p>
-              </div>
-
-              <SignaturePad ref={sigPadRef} />
-
-              {error && (
-                <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-                  {error}
-                </p>
-              )}
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setStep("form");
-                  }}
-                  disabled={submitting}
-                  className="border border-gray-300 text-gray-700 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                >
-                  ← Back
-                </button>
-                <button
-                  type="button"
-                  onClick={submitAttendance}
-                  disabled={submitting}
-                  className="flex-1 bg-esn text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-esn-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {submitting ? "Submitting…" : "Submit attendance"}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </main>

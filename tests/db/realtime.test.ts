@@ -9,10 +9,9 @@ import {
   deleteEvent,
   forgedJwt,
   organiserSession,
-  participantRow,
+  signIn,
   type TestEvent,
 } from "../helpers/local";
-import { sampleSignature } from "../helpers/png";
 
 let event: TestEvent;
 const clients: SupabaseClient[] = [];
@@ -50,17 +49,19 @@ async function listen(client: SupabaseClient) {
   return received;
 }
 
-it("only organisers receive new sign-ins, signature included", async () => {
+it("only organisers receive new sign-ins, names but no answers", async () => {
   const organiser = await listen(await clientAs((await organiserSession()).access_token));
   const anon = await listen(anonClient());
   const outsider = await listen(await clientAs(forgedJwt("someone@gmail.com")));
 
-  const signature = await sampleSignature();
-  const { error } = await anonClient().from("participants").insert(participantRow(event.id, signature));
+  const { error } = await signIn(anonClient(), event.id, { first_name: "Live" });
   expect(error).toBeNull();
 
   await expect.poll(() => organiser.length, { timeout: 15_000 }).toBe(1);
-  expect(organiser[0].signature).toBe(signature);
+  expect(organiser[0].first_name).toBe("Live");
+  for (const column of ["nationality", "university", "exchange_program", "esn_card"]) {
+    expect(organiser[0]).not.toHaveProperty(column);
+  }
   // Wait a little longer: nothing may arrive for the others.
   await new Promise((r) => setTimeout(r, 1500));
   expect(anon).toEqual([]);

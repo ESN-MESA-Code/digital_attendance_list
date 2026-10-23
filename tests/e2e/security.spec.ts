@@ -1,15 +1,11 @@
-// Security: organiser pages and exports need an esnmesa.org login; forged
-// sessions don't count; responses carry protective headers.
+// Security: organiser pages need an esnmesa.org login; forged sessions don't
+// count; the executives sync needs its secret; responses carry protective
+// headers.
 import { SIGNOUT_ORGANISER, forgedJwt, sessionCookies } from "../helpers/local";
 import { expect, test } from "./fixtures";
 
 const someId = "00000000-0000-4000-8000-000000000000";
 const pages = ["/dashboard", "/dashboard/events", `/dashboard/events/${someId}`, `/kiosk/${someId}`];
-const apis = [
-  `/api/export/event/${someId}/csv`,
-  `/api/export/event/${someId}/pdf`,
-  `/api/export/events/pdf?ids=${someId}`,
-];
 
 test.describe("signed out", () => {
   for (const path of pages) {
@@ -20,11 +16,18 @@ test.describe("signed out", () => {
     });
   }
 
-  for (const path of apis) {
-    test(`${path} answers 401`, async ({ request }) => {
-      const res = await request.get(path);
-      expect(res.status()).toBe(401);
+  for (const path of [`/api/export/event/${someId}/csv`, `/api/export/event/${someId}/pdf`]) {
+    test(`the old export ${path} is gone`, async ({ request }) => {
+      expect((await request.get(path)).status()).toBe(404);
     });
+  }
+});
+
+test("the executives sync refuses requests without the cron secret", async ({ request }) => {
+  const attempts: Record<string, string>[] = [{}, { Authorization: "Bearer guess" }, { Authorization: "Bearer " }];
+  for (const headers of attempts) {
+    const res = await request.get("/api/cron/sync-executives", { headers });
+    expect(res.status()).toBe(401);
   }
 });
 
@@ -49,7 +52,6 @@ test.describe("forged sessions", () => {
       );
       await page.goto("/dashboard/events");
       await expect(page).toHaveURL(/\/login/);
-      expect((await page.request.get(apis[0])).status()).toBe(401);
     });
   }
 });

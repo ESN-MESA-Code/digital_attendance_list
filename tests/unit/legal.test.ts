@@ -30,7 +30,8 @@ describe("legal texts", () => {
         "impressum",
         "privacy.en",
         "privacy.de",
-        "form-disclaimer.en",
+        "terms.en",
+        "form-terms.en",
         "form-data-processing.en",
       ])
     );
@@ -47,19 +48,39 @@ describe("legal texts", () => {
     expect(example_deletion_year).toBe(example_event_year + years);
   });
 
-  it("the notice version is a date", () => {
-    expect(LEGAL.notice_version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  it("the retention period is spelled out the same everywhere", () => {
+    expect(LEGAL.retention).toMatchObject({ years: 3, ordinal_en: "third", ordinal_de: "dritten" });
+  });
+
+  it.each(["notice_version", "terms_version", "confidentiality_version"] as const)("%s is a date", (key) => {
+    expect(LEGAL[key]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("the form's terms box names the version and links the full terms", () => {
+    const { terms } = attendanceFormTexts();
+    expect(terms).toContain(`(version ${LEGAL.terms_version})`);
+    expect(terms).toContain('<a target="_blank" rel="noopener" href="/terms">Full participation terms</a>');
+    // The corrected liability clause, not the old invalid disclaimer.
+    expect(terms).toContain("injury to life, body or health");
+    expect(terms).not.toMatch(/gross breach of duty|at your own risk|of legal full age/i);
+  });
+
+  it("the full terms carry the same version", () => {
+    expect(legalHtml("terms.en")).toContain(`version ${LEGAL.terms_version}`);
   });
 
   it("the form names the contact email and the retention period", () => {
     const { dataProcessing } = attendanceFormTexts();
     expect(dataProcessing).toContain(`mailto:${LEGAL.association.email}`);
-    expect(dataProcessing).toContain(`end of the ${LEGAL.retention.years}th year after the event`);
+    expect(dataProcessing).toContain(`end of the ${LEGAL.retention.ordinal_en} year after the event`);
     // Legitimate interest with a right to object – not consent.
     expect(dataProcessing).toContain("Art. 6(1)(f) GDPR");
     expect(dataProcessing).toMatch(/<strong>You can object at any time, on grounds relating to your particular situation/);
-    // Funders are named as recipients, not "only organisers".
-    expect(dataProcessing).toContain("funders or auditors");
+    // Names for organisers while the event is on, then executives; no funders.
+    expect(dataProcessing).toContain("afterwards only our executives");
+    // The optional answers are only counted.
+    expect(dataProcessing).toContain("never stored with your name");
+    expect(dataProcessing).not.toMatch(/funder|auditor|signature/i);
     expect(dataProcessing).toContain("paper list");
     // The full notice is one click away, in a new tab.
     expect(dataProcessing).toContain('<a target="_blank" rel="noopener" href="/privacy">');

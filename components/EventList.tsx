@@ -1,27 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { formatFiled } from "@/lib/events/filed";
 import { formatSignedOff } from "@/lib/events/signoff";
+import { listState } from "@/lib/events/window";
 import type { Event } from "@/types";
 
 interface Props {
   events: Event[];
+  /** Sign-ins per event id (public.event_signin_counts()). */
+  signins?: Record<string, number>;
   /** Shown when the list is empty. */
   emptyText?: string;
-  /** Set while picking events for the combined PDF: shows checkboxes. */
-  selected?: Set<string>;
-  onToggle?: (id: string) => void;
-  /** Flips an event's "filed in the office" state (signed-off events only). */
-  onToggleFiled?: (event: Event) => void;
 }
+
+const STATUS = {
+  upcoming: { label: "Upcoming", className: "border border-gray-300 text-gray-600" },
+  open: { label: "Open", className: "bg-amber-50 text-amber-800 border border-amber-200" },
+  // Closed 24 hours after the event; finance waits for the organiser's count.
+  closed: { label: "Awaiting sign-off", className: "bg-red-50 text-red-700 border border-red-200" },
+  signed: { label: "✓ Signed off", className: "bg-esn/10 text-esn" },
+} as const;
 
 export default function EventList({
   events,
+  signins = {},
   emptyText = "No events yet. Create your first event above.",
-  selected,
-  onToggle,
-  onToggleFiled,
 }: Props) {
   if (events.length === 0) {
     return <p className="text-gray-500 text-sm py-4 text-center">{emptyText}</p>;
@@ -30,26 +33,9 @@ export default function EventList({
   return (
     <ul className="divide-y divide-gray-200">
       {events.map((event) => {
-        const isSelected = selected?.has(event.id) ?? false;
-        const signed = !!event.signed_off_at;
+        const status = STATUS[event.signed_off_at ? "signed" : listState(event)];
         return (
-          <li
-            key={event.id}
-            className={`py-3 flex items-center gap-3 px-2 rounded ${
-              isSelected ? "bg-esn/5" : "hover:bg-gray-50"
-            }`}
-          >
-            {selected && onToggle && (
-              <input
-                type="checkbox"
-                checked={isSelected}
-                disabled={!signed}
-                onChange={() => onToggle(event.id)}
-                aria-label={`Select ${event.title}`}
-                title={signed ? undefined : "Only signed-off events can be exported"}
-                className="h-4 w-4 shrink-0 accent-esn disabled:opacity-30"
-              />
-            )}
+          <li key={event.id} className="py-3 flex items-center gap-3 px-2 rounded hover:bg-gray-50">
             <div className="min-w-0 flex-1">
               <p className="font-medium text-gray-900 line-clamp-2 break-words">{event.title}</p>
               <p className="text-xs text-gray-500">
@@ -64,29 +50,15 @@ export default function EventList({
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 <span
                   title={formatSignedOff(event)}
-                  aria-label={`${signed ? "Signed off" : "Open"}: ${event.title}`}
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    signed ? "bg-esn/10 text-esn" : "bg-amber-50 text-amber-800 border border-amber-200"
-                  }`}
+                  aria-label={`${status.label.replace("✓ ", "")}: ${event.title}`}
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${status.className}`}
                 >
-                  {signed ? "✓ Signed off" : "Open"}
+                  {status.label}
                 </span>
-                {onToggleFiled && (
-                  <button
-                    type="button"
-                    onClick={() => onToggleFiled(event)}
-                    disabled={!signed}
-                    title={signed ? `${formatFiled(event)} – click to change` : "Sign the event off before filing it"}
-                    aria-label={`${event.filed_at ? "Filed" : "Not filed"}: ${event.title}`}
-                    aria-pressed={!!event.filed_at}
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                      event.filed_at
-                        ? "bg-green-100 text-green-800 hover:bg-green-200"
-                        : "border border-dashed border-gray-300 text-gray-500 enabled:hover:border-esn enabled:hover:text-esn"
-                    }`}
-                  >
-                    {event.filed_at ? "✓ Filed" : "Not filed"}
-                  </button>
+                {event.signed_off_at && (
+                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs text-gray-600 bg-gray-100">
+                    {signins[event.id] ?? 0} signed in · {event.headcount} counted
+                  </span>
                 )}
               </div>
             </div>
